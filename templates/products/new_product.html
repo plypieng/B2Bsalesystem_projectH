@@ -1,0 +1,23 @@
+<!-- templates/products/new_product.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>Add New Product</h2>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    {{ form.name.label(class="form-label") }}
+    {{ form.name(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.category.label(class="form-label") }}
+    {{ form.category(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.default_price.label(class="form-label") }}
+    {{ form.default_price(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.submit(class="btn btn-primary") }}
+  </div>
+</form>
+{% endblock %}

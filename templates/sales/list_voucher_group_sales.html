@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Voucher/Group Sales</h2>
+
+<!-- Month Pagination -->
+<form method="GET" class="row mb-3">
+  <div class="col-auto">
+    <label for="month">Select Month:</label>
+    <input type="month" id="month" name="month" class="form-control"
+           value="{{ month_filter if month_filter else '' }}">
+  </div>
+  <div class="col-auto align-self-end">
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </div>
+</form>
+
+<a href="{{ url_for('sales.new_voucher_group_sale') }}" class="btn btn-success mb-3">New Sale</a>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Date</th>
+      <th>Salesperson</th>
+      <th>Partner Name</th>
+      <th>Partner Company</th>
+      <th>Type</th>
+      <th>Qty</th>
+      <th>Price</th>
+      <th>Total</th>
+      <th>Total+VAT</th>
+      <th>Status</th>
+      <th>Booking Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sale in sales %}
+    <tr>
+      <td>{{ sale.id }}</td>
+      <td>{{ sale.sale_date.strftime('%Y-%m-%d') if sale.sale_date else '' }}</td>
+      <td>{{ sale.salesperson.username if sale.salesperson else '' }}</td>
+      <td>{{ sale.partner_name }}</td>
+      <td>{{ sale.partner_company }}</td>
+      <td>{{ sale.sale_type.capitalize() }}</td>
+      <td>{{ sale.quantity }}</td>
+      <td>{{ "%.2f"|format(sale.price_per_unit) }}</td>
+      <td>{{ "%.2f"|format(sale.total_price) }}</td>
+      <td>{{ "%.2f"|format(sale.total_sale) }}</td>
+      
+      <!-- Inline Status DropDown -->
+      <td>
+        <form method="POST" style="display:inline;">
+          <input type="hidden" name="sale_id" value="{{ sale.id }}">
+          <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="waiting" {% if sale.status == 'waiting' %}selected{% endif %}>Waiting</option>
+            <option value="paid" {% if sale.status == 'paid' %}selected{% endif %}>Paid</option>
+            <option value="canceled" {% if sale.status == 'canceled' %}selected{% endif %}>Canceled</option>
+          </select>
+        </form>
+      </td>
+      
+      <!-- Show the first booking's status if it exists -->
+      <td>
+        {% if sale.bookings and sale.bookings|length > 0 %}
+          {{ sale.bookings[0].status|capitalize }}
+        {% else %}
+          <span class="text-muted">No booking</span>
+        {% endif %}
+      </td>
+      
+      <td>
+        <a href="{{ url_for('sales.view_sale', sale_id=sale.id) }}" class="btn btn-sm btn-info">View</a>
+        <a href="{{ url_for('sales.edit_sale', sale_id=sale.id) }}" class="btn btn-sm btn-warning">Edit</a>
+        <a href="{{ url_for('sales.delete_sale', sale_id=sale.id) }}"
+           class="btn btn-sm btn-danger"
+           onclick="return confirm('Are you sure you want to delete this sale?')">
+          Delete
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

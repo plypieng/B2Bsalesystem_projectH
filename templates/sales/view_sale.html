@@ -1,0 +1,20 @@
+<!-- templates/sales/view_sale.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>View Sale #{{ sale.id }}</h2>
+<ul>
+    <li>Date: {{ sale.sale_date.strftime('%Y-%m-%d') }}</li>
+    <li>Type: {{ sale.sale_type }}</li>
+    <li>Product: {{ sale.product_name }}</li>
+    <li>Quantity: {{ sale.quantity }}</li>
+    <li>Price per Unit: {{ sale.price_per_unit }}</li>
+    <li>Total Price: {{ sale.total_price }}</li>
+    <li>VAT 7%: {{ sale.vat_7 }}</li>
+    <li>Total Sale: {{ sale.total_sale }}</li>
+    <li>Partner Name: {{ sale.partner_name }}</li>
+    <li>Branch: {{ sale.branch.name }}</li>
+    <li>Notes: {{ sale.noted }}</li>
+</ul>
+<a href="{{ url_for('sales.list_voucher_group_sales') }}" class="btn btn-secondary">Back to Sales</a>
+{% endblock %}

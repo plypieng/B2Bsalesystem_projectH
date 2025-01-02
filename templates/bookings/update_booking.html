@@ -1,0 +1,33 @@
+<!-- templates/bookings/update_booking.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Update Booking #{{ booking.id }}</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+        {{ form.status.label(class="form-label") }}
+        {{ form.status(class="form-select") }}
+        {% for error in form.status.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.actual_quantity.label(class="form-label") }}
+        {{ form.actual_quantity(class="form-control", placeholder="Enter actual quantity") }}
+        {% for error in form.actual_quantity.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.noted.label(class="form-label") }}
+        {{ form.noted(class="form-control", placeholder="Enter notes") }}
+        {% for error in form.noted.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.submit(class="btn btn-primary") }}
+    </div>
+</form>
+{% endblock %}

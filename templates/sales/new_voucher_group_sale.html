@@ -1,0 +1,86 @@
+<!-- templates/sales/new_voucher_group_sale.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>{% if editing %}Edit{% else %}New{% endif %} Voucher/Group Sale</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    
+    <!-- Sale Type is auto-based on product category, but we keep this for clarity -->
+    <div class="mb-3">
+        {{ form.sale_type.label(class="form-label") }}
+        {{ form.sale_type(class="form-select") }}
+        {% for error in form.sale_type.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.product_id.label(class="form-label") }}
+        {{ form.product_id(class="form-select") }}
+        {% for error in form.product_id.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.partner_name.label(class="form-label") }}
+        {{ form.partner_name(class="form-control") }}
+        {% for error in form.partner_name.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.partner_company.label(class="form-label") }}
+        {{ form.partner_company(class="form-control") }}
+        {% for error in form.partner_company.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.booking_name.label(class="form-label") }}
+        {{ form.booking_name(class="form-control") }}
+        {% for error in form.booking_name.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+        <small class="text-muted">This helps reference the booking record that will be created automatically.</small>
+    </div>
+    
+    <div class="mb-3">
+        {{ form.quantity.label(class="form-label") }}
+        {{ form.quantity(class="form-control") }}
+        {% for error in form.quantity.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.price_per_unit.label(class="form-label") }}
+        {{ form.price_per_unit(class="form-control") }}
+        {% for error in form.price_per_unit.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.status.label(class="form-label") }}
+        {{ form.status(class="form-select") }}
+        {% for error in form.status.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.noted.label(class="form-label") }}
+        {{ form.noted(class="form-control") }}
+        {% for error in form.noted.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.submit(class="btn btn-primary") }}
+    </div>
+</form>
+{% endblock %}

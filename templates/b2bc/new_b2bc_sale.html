@@ -1,0 +1,40 @@
+<!-- templates/b2bc/new_b2bc_sale.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>New B2BC Sale</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+        {{ form.course_name.label(class="form-label") }}
+        {{ form.course_name(class="form-control", placeholder="Enter course name") }}
+        {% for error in form.course_name.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.price.label(class="form-label") }}
+        {{ form.price(class="form-control", placeholder="Enter price") }}
+        {% for error in form.price.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.branch.label(class="form-label") }}
+        {{ form.branch(class="form-select") }}
+        {% for error in form.branch.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.noted.label(class="form-label") }}
+        {{ form.noted(class="form-control", placeholder="Enter notes") }}
+        {% for error in form.noted.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.submit(class="btn btn-primary") }}
+    </div>
+</form>
+{% endblock %}

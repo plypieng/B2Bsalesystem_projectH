@@ -1,0 +1,42 @@
+<!-- templates/bookings/list_bookings.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Bookings</h2>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Sale ID</th>
+            <th>Date</th>
+            <th>Time Slot</th>
+            <th>Status</th>
+            <th>Actual Quantity</th>
+            <th>Branch</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for booking in bookings %}
+        <tr>
+            <td>{{ booking.id }}</td>
+            <td>{{ booking.voucher_group_sale_id }}</td>
+            <td>
+              {% if booking.booking_date %}
+                {{ booking.booking_date.strftime('%Y-%m-%d') }}
+              {% else %}
+                <span class="text-muted">No Date</span>
+              {% endif %}
+            </td>
+            <td>{{ booking.time_slot or '-' }}</td>
+            <td>{{ booking.status.capitalize() }}</td>
+            <td>{{ booking.actual_quantity }}</td>
+            <td>{{ booking.branch.name if booking.branch else '-' }}</td>
+            <td>
+                <a href="{{ url_for('booking.update_booking', booking_id=booking.id) }}" class="btn btn-sm btn-primary">Edit</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

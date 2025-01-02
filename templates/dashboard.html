@@ -1,0 +1,235 @@
+<!-- templates/dashboard/dashboard.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<!-- KPI Cards -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-header">Total Revenue Today</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(total_revenue_today) }} THB</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-header">Total Revenue This Month</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(total_revenue_month) }} THB</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-header">Total Revenue This Year</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(total_revenue_year) }} THB</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning mb-3">
+            <div class="card-header">Commission This Month</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(commission_month) }} THB</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-white bg-secondary mb-3">
+            <div class="card-header">Bookings Today</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ bookings_today }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-dark mb-3">
+            <div class="card-header">Bookings This Week</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ bookings_week }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger mb-3">
+            <div class="card-header">Utilization Rate</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(utilization_rate) }}%</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Breakdown Chart -->
+<div class="row">
+    <div class="col-md-6">
+        <canvas id="salesBreakdownChart"></canvas>
+    </div>
+    <div class="col-md-6">
+        <canvas id="salesTrendChart"></canvas>
+    </div>
+</div>
+
+<!-- Top Products and Partners Charts -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <canvas id="topProductsChart"></canvas>
+    </div>
+    <div class="col-md-6">
+        <canvas id="topPartnersChart"></canvas>
+    </div>
+</div>
+
+<!-- Commission & Profit Overview -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">Gross Revenue</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(gross_revenue) }} THB</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">Commission Paid</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(total_commission) }} THB</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">Net Revenue</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(net_revenue) }} THB</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Branch Comparisons -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <h3>Revenue by Branch</h3>
+        <canvas id="branchRevenueChart"></canvas>
+    </div>
+    <div class="col-md-6">
+        <h3>Bookings by Branch</h3>
+        <canvas id="branchBookingsChart"></canvas>
+    </div>
+</div>
+
+<!-- Charts Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Sales Breakdown Chart
+    var ctx = document.getElementById('salesBreakdownChart').getContext('2d');
+    var salesBreakdownChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: [{% for type, count in sales_breakdown %}'{{ type }}',{% endfor %}],
+            datasets: [{
+                data: [{% for type, count in sales_breakdown %}{{ count }},{% endfor %}],
+                backgroundColor: ['#007bff','#28a745','#dc3545','#ffc107']
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Sales Trend Chart
+    var ctx2 = document.getElementById('salesTrendChart').getContext('2d');
+    var salesTrendChart = new Chart(ctx2, {
+        type: 'line',
+        data: {
+            labels: [{% for date, total in sales_trend %}'{{ date }}',{% endfor %}],
+            datasets: [{
+                label: 'Daily Sales (THB)',
+                data: [{% for date, total in sales_trend %}{{ total }},{% endfor %}],
+                borderColor: '#28a745',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Top Products Chart
+    var ctx3 = document.getElementById('topProductsChart').getContext('2d');
+    var topProductsChart = new Chart(ctx3, {
+        type: 'bar',
+        data: {
+            labels: [{% for product, count in top_products %}'{{ product }}',{% endfor %}],
+            datasets: [{
+                label: 'Quantity Sold',
+                data: [{% for product, count in top_products %}{{ count }},{% endfor %}],
+                backgroundColor: '#ffc107'
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Top Partners Chart
+    var ctx4 = document.getElementById('topPartnersChart').getContext('2d');
+    var topPartnersChart = new Chart(ctx4, {
+        type: 'bar',
+        data: {
+            labels: [{% for partner, total in top_partners %}'{{ partner }}',{% endfor %}],
+            datasets: [{
+                label: 'Total Revenue (THB)',
+                data: [{% for partner, total in top_partners %}{{ total }},{% endfor %}],
+                backgroundColor: '#17a2b8'
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Branch Revenue Chart
+    var ctx5 = document.getElementById('branchRevenueChart').getContext('2d');
+    var branchRevenueChart = new Chart(ctx5, {
+        type: 'bar',
+        data: {
+            labels: [{% for branch, revenue in branch_revenue %}'{{ branch }}',{% endfor %}],
+            datasets: [{
+                label: 'Revenue (THB)',
+                data: [{% for branch, revenue in branch_revenue %}{{ revenue }},{% endfor %}],
+                backgroundColor: '#6f42c1'
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Branch Bookings Chart
+    var ctx6 = document.getElementById('branchBookingsChart').getContext('2d');
+    var branchBookingsChart = new Chart(ctx6, {
+        type: 'bar',
+        data: {
+            labels: [{% for branch, bookings in branch_bookings %}'{{ branch }}',{% endfor %}],
+            datasets: [{
+                label: 'Bookings',
+                data: [{% for branch, bookings in branch_bookings %}{{ bookings }},{% endfor %}],
+                backgroundColor: '#fd7e14'
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+</script>
+{% endblock %}
