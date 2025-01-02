@@ -51,8 +51,6 @@ class SalesVoucherGroup(db.Model):
     sale_date = db.Column(db.DateTime, default=datetime.utcnow)
     sale_type = db.Column(db.String(50), nullable=False)
     
-    # We'll store only the final 'product_name' or we can remove it. 
-    # We'll rely on product_id in the form, but you might store final name after selection.
     product_name = db.Column(db.String(100), nullable=True)
     
     quantity = db.Column(db.Integer, default=1)
@@ -63,8 +61,6 @@ class SalesVoucherGroup(db.Model):
     
     partner_name = db.Column(db.String(100))
     partner_company = db.Column(db.String(100))
-    
-    # Removed direct references to branch_id for now or keep it if you want
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)
     
     noted = db.Column(db.Text)
@@ -75,7 +71,6 @@ class SalesVoucherGroup(db.Model):
     
     salesperson = db.relationship('User', backref='voucher_group_sales', foreign_keys=[salesperson_id])
     
-    # The cascade line is the key to deleting without constraint errors
     bookings = db.relationship(
         'Booking',
         backref='voucher_group_sale',
@@ -88,7 +83,6 @@ class SalesVoucherGroup(db.Model):
         return f"<SalesVoucherGroup (id={self.id}, type={self.sale_type})>"
 
     def compute_activity_group_price(self):
-        # bracket logic
         brackets_on_site = [(10, 900), (15, 850), (20, 800), (30, 750), (40, 700), (50, 650)]
         brackets_off_site = [(20, 1300), (40, 1100), (60, 1000), (80, 950), (100, 850)]
 
@@ -116,7 +110,6 @@ class Booking(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     
-    # Now allow NULL, plus ondelete='CASCADE'
     voucher_group_sale_id = db.Column(
         db.Integer, 
         db.ForeignKey('sales_voucher_group.id', ondelete='CASCADE'),
@@ -126,7 +119,7 @@ class Booking(db.Model):
     
     booking_date = db.Column(db.Date)
     time_slot = db.Column(db.String(50))
-    status = db.Column(db.String(50), default='booked')
+    status = db.Column(db.String(50), default='not_booked')
     actual_quantity = db.Column(db.Integer, default=0)
     noted = db.Column(db.Text)
     

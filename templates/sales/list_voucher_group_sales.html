@@ -48,7 +48,7 @@
       <td>{{ "%.2f"|format(sale.total_price) }}</td>
       <td>{{ "%.2f"|format(sale.total_sale) }}</td>
       
-      <!-- Inline Status DropDown -->
+      <!-- Inline Status DropDown for the sale itself -->
       <td>
         <form method="POST" style="display:inline;">
           <input type="hidden" name="sale_id" value="{{ sale.id }}">
@@ -60,12 +60,18 @@
         </form>
       </td>
       
-      <!-- Show the first booking's status if it exists -->
+      <!-- Show booking's status if it exists, else "Not booked" + Book Now button -->
       <td>
         {% if sale.bookings and sale.bookings|length > 0 %}
           {{ sale.bookings[0].status|capitalize }}
         {% else %}
-          <span class="text-muted">No booking</span>
+          <span class="text-danger">Not booked</span>
+          <br>
+          <!-- Book Now Button -->
+          <a href="{{ url_for('booking.new_booking_for_sale', sale_id=sale.id) }}" 
+             class="btn btn-sm btn-secondary mt-1">
+            Book Now
+          </a>
         {% endif %}
       </td>
       

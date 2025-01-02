@@ -2,7 +2,7 @@
 from flask_wtf import FlaskForm
 from wtforms import (
     StringField, PasswordField, SubmitField, BooleanField, SelectField,
-    FloatField, TextAreaField, HiddenField, IntegerField
+    FloatField, TextAreaField, HiddenField, IntegerField, DateField
 )
 from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional
 
@@ -32,7 +32,6 @@ class RegistrationForm(FlaskForm):
 class VoucherGroupSaleForm(FlaskForm):
     id = HiddenField("ID")  # For editing existing record
     sale_type = SelectField('Sale Type', choices=[('voucher', 'Voucher'), ('group', 'Group')], validators=[DataRequired()])
-    # Instead of free text for product_name, we will switch to product_id
     product_id = SelectField('Product', coerce=int, validators=[DataRequired()])
     
     partner_name = StringField('Partner Name', validators=[Optional(), Length(max=100)])
@@ -60,10 +59,33 @@ class B2BCSaleForm(FlaskForm):
     submit = SubmitField('Record Sale')
 
 class UpdateBookingForm(FlaskForm):
-    status = SelectField('Status', choices=[('booked', 'Booked'), ('confirmed', 'Confirmed'), ('used', 'Used'), ('canceled', 'Canceled')], validators=[DataRequired()])
+    status = SelectField('Status', choices=[('not_booked', 'Not Booked'), ('booked', 'Booked'), ('confirmed', 'Confirmed'), ('used', 'Used'), ('canceled', 'Canceled')], validators=[DataRequired()])
     actual_quantity = FloatField('Actual Quantity', validators=[Optional()])
     noted = TextAreaField('Notes', validators=[Optional()])
     submit = SubmitField('Update Booking')
+
+# NEW: for creating a brand-new booking from booking page
+class NewBookingForm(FlaskForm):
+    booking_name = StringField('Booking Name', validators=[Optional(), Length(max=100)])
+    booking_date = DateField('Booking Date', validators=[Optional()])  # can be optional
+    time_slot = SelectField('Time Slot', choices=[
+        ('08:00','08:00'), ('09:00','09:00'), ('10:00','10:00'),
+        ('11:00','11:00'), ('13:00','13:00'), ('14:00','14:00'),
+        ('15:00','15:00'), ('16:00','16:00'), ('17:00','17:00')
+    ], validators=[Optional()])
+    
+    branch_id = SelectField('Branch', coerce=int, validators=[Optional()])
+    
+    status = SelectField('Status', choices=[
+        ('not_booked', 'Not Booked'),
+        ('booked','Booked'),
+        ('confirmed','Confirmed'),
+        ('used','Used'),
+        ('canceled','Canceled')
+    ], default='not_booked')
+    
+    noted = TextAreaField('Notes', validators=[Optional()])
+    submit = SubmitField('Create Booking')
 
 class ProductForm(FlaskForm):
     id = HiddenField("ID")

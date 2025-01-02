@@ -1,8 +1,8 @@
-"""Initial migration.
+"""Initial migration
 
-Revision ID: c43bd78435d7
+Revision ID: 4163deb3bcd5
 Revises: 
-Create Date: 2024-12-29 23:58:26.825057
+Create Date: 2025-01-03 03:33:49.786181
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'c43bd78435d7'
+revision = '4163deb3bcd5'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -22,6 +22,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('location', sa.String(length=255), nullable=True),
+    sa.Column('capacity', sa.Integer(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('commission_rules',
@@ -31,20 +32,12 @@ def upgrade():
     sa.Column('rate', sa.Float(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('sales_voucher_group',
+    op.create_table('products',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('sale_date', sa.DateTime(), nullable=True),
-    sa.Column('sale_type', sa.String(length=50), nullable=False),
-    sa.Column('product_name', sa.String(length=100), nullable=False),
-    sa.Column('quantity', sa.Integer(), nullable=True),
-    sa.Column('price_per_unit', sa.Float(), nullable=True),
-    sa.Column('total_price', sa.Float(), nullable=True),
-    sa.Column('vat_7', sa.Float(), nullable=True),
-    sa.Column('total_sale', sa.Float(), nullable=True),
-    sa.Column('partner_name', sa.String(length=100), nullable=True),
-    sa.Column('branch_id', sa.Integer(), nullable=True),
-    sa.Column('noted', sa.Text(), nullable=True),
-    sa.ForeignKeyConstraint(['branch_id'], ['branches.id'], ),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('category', sa.String(length=50), nullable=False),
+    sa.Column('default_price', sa.Float(), nullable=True),
+    sa.Column('description', sa.Text(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('users',
@@ -58,19 +51,6 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username')
-    )
-    op.create_table('bookings',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('voucher_group_sale_id', sa.Integer(), nullable=False),
-    sa.Column('booking_date', sa.Date(), nullable=False),
-    sa.Column('time_slot', sa.String(length=50), nullable=True),
-    sa.Column('status', sa.String(length=50), nullable=True),
-    sa.Column('actual_quantity', sa.Integer(), nullable=True),
-    sa.Column('noted', sa.Text(), nullable=True),
-    sa.Column('branch_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['branch_id'], ['branches.id'], ),
-    sa.ForeignKeyConstraint(['voucher_group_sale_id'], ['sales_voucher_group.id'], ),
-    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('sales_b2bc',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -86,15 +66,50 @@ def upgrade():
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('sales_voucher_group',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('sale_date', sa.DateTime(), nullable=True),
+    sa.Column('sale_type', sa.String(length=50), nullable=False),
+    sa.Column('product_name', sa.String(length=100), nullable=True),
+    sa.Column('quantity', sa.Integer(), nullable=True),
+    sa.Column('price_per_unit', sa.Float(), nullable=True),
+    sa.Column('total_price', sa.Float(), nullable=True),
+    sa.Column('vat_7', sa.Float(), nullable=True),
+    sa.Column('total_sale', sa.Float(), nullable=True),
+    sa.Column('partner_name', sa.String(length=100), nullable=True),
+    sa.Column('partner_company', sa.String(length=100), nullable=True),
+    sa.Column('branch_id', sa.Integer(), nullable=True),
+    sa.Column('noted', sa.Text(), nullable=True),
+    sa.Column('salesperson_id', sa.Integer(), nullable=True),
+    sa.Column('status', sa.String(length=50), nullable=True),
+    sa.ForeignKeyConstraint(['branch_id'], ['branches.id'], ),
+    sa.ForeignKeyConstraint(['salesperson_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('bookings',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('voucher_group_sale_id', sa.Integer(), nullable=True),
+    sa.Column('booking_name', sa.String(length=100), nullable=True),
+    sa.Column('booking_date', sa.Date(), nullable=True),
+    sa.Column('time_slot', sa.String(length=50), nullable=True),
+    sa.Column('status', sa.String(length=50), nullable=True),
+    sa.Column('actual_quantity', sa.Integer(), nullable=True),
+    sa.Column('noted', sa.Text(), nullable=True),
+    sa.Column('branch_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['branch_id'], ['branches.id'], ),
+    sa.ForeignKeyConstraint(['voucher_group_sale_id'], ['sales_voucher_group.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
     # ### end Alembic commands ###
 
 
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_table('sales_b2bc')
     op.drop_table('bookings')
-    op.drop_table('users')
     op.drop_table('sales_voucher_group')
+    op.drop_table('sales_b2bc')
+    op.drop_table('users')
+    op.drop_table('products')
     op.drop_table('commission_rules')
     op.drop_table('branches')
     # ### end Alembic commands ###

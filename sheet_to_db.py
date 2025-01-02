@@ -2,7 +2,7 @@
 import gspread
 from google.oauth2.service_account import Credentials
 from app import create_app
-from models import db, SalesVoucherGroup, SalesB2BC, Booking, Branch
+from models import db, SalesVoucherGroup, SalesB2BC, Booking, Branch, User
 import datetime
 from flask import flash
 
@@ -27,18 +27,17 @@ def migrate_p2v_to_db():
     data = ws.get_all_records()
     
     for row in data:
-        # Example row fields (adapt to your actual columns):
         sale_date_str = row.get("Sale Date")
         sale_date = datetime.datetime.strptime(sale_date_str, '%Y-%m-%d') if sale_date_str else datetime.datetime.utcnow()
         
-        product_name = row.get("Voucher Type")   # e.g., "1 Day Pass", "2 Day Pass PV"
+        product_name = row.get("Voucher Type")
         quantity = row.get("Quantity Sold", 1)
         price_per_unit = float(row.get("Price (Per Unit)", 0))
         total_price = float(row.get("Total Price", 0))
         vat_7 = float(row.get("Vat 7%", 0))
         total_sale = float(row.get("Total Sale", 0))
         partner_name = row.get("Partner Name", "")
-        branch_name = row.get("Branch Name", "Default Branch")  # Adjust as per your spreadsheet
+        branch_name = row.get("Branch Name", "Default Branch")
         
         # Ensure branch exists
         branch = Branch.query.filter_by(name=branch_name).first()
@@ -90,9 +89,9 @@ def migrate_b2bc_to_db():
         
         course_name = row.get("Course Name", "Muay Thai Course")
         price = float(row.get("Price", 0))
-        commission_rate = float(row.get("Commission Rate", 0.1))  # Assuming there's a column for commission rate
+        commission_rate = float(row.get("Commission Rate", 0.1))
         commission_amount = price * commission_rate
-        branch_name = row.get("Branch Name", "Default Branch")  # Adjust as per your spreadsheet
+        branch_name = row.get("Branch Name", "Default Branch")
         
         # Ensure branch exists
         branch = Branch.query.filter_by(name=branch_name).first()
@@ -101,13 +100,12 @@ def migrate_b2bc_to_db():
             db.session.add(branch)
             db.session.commit()
         
-        # Ensure the salesperson exists (assuming there's a column for salesperson username)
-        salesperson_username = row.get("Salesperson", "admin")  # Default to admin if not specified
+        # Ensure the salesperson exists
+        salesperson_username = row.get("Salesperson", "admin")
         salesperson = User.query.filter_by(username=salesperson_username).first()
         if not salesperson:
-            # Create a default admin user if not found (optional)
             salesperson = User(username='admin', email='admin@example.com', role='admin', branch_id=branch.id)
-            salesperson.set_password('adminpassword')  # Change to a secure password
+            salesperson.set_password('adminpassword')
             db.session.add(salesperson)
             db.session.commit()
         

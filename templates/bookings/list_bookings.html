@@ -3,11 +3,14 @@
 
 {% block content %}
 <h2>Bookings</h2>
+<a href="{{ url_for('booking.new_booking') }}" class="btn btn-success mb-3">Create New Booking (Generic)</a>
+
 <table class="table table-striped">
     <thead>
         <tr>
             <th>ID</th>
             <th>Sale ID</th>
+            <th>Booking Name</th>
             <th>Date</th>
             <th>Time Slot</th>
             <th>Status</th>
@@ -20,7 +23,8 @@
         {% for booking in bookings %}
         <tr>
             <td>{{ booking.id }}</td>
-            <td>{{ booking.voucher_group_sale_id }}</td>
+            <td>{{ booking.voucher_group_sale_id if booking.voucher_group_sale_id else 'N/A' }}</td>
+            <td>{{ booking.booking_name if booking.booking_name else '—' }}</td>
             <td>
               {% if booking.booking_date %}
                 {{ booking.booking_date.strftime('%Y-%m-%d') }}
@@ -31,7 +35,13 @@
             <td>{{ booking.time_slot or '-' }}</td>
             <td>{{ booking.status.capitalize() }}</td>
             <td>{{ booking.actual_quantity }}</td>
-            <td>{{ booking.branch.name if booking.branch else '-' }}</td>
+            <td>
+              {% if booking.branch %}
+                {{ booking.branch.name }}
+              {% else %}
+                <span class="text-muted">No branch</span>
+              {% endif %}
+            </td>
             <td>
                 <a href="{{ url_for('booking.update_booking', booking_id=booking.id) }}" class="btn btn-sm btn-primary">Edit</a>
             </td>
