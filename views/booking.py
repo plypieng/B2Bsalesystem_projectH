@@ -1,8 +1,9 @@
 # views/booking.py
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from models import db, Booking, Branch, SalesVoucherGroup
-from forms import UpdateBookingForm, NewBookingForm
+from forms import UpdateBookingForm, NewBookingForm, InlineUpdateBookingForm
 from utils.decorators import roles_required
 
 booking_bp = Blueprint('booking', __name__, template_folder='bookings')
@@ -14,6 +15,7 @@ def list_bookings():
         bookings = Booking.query.all()
     else:
         bookings = Booking.query.filter_by(branch_id=current_user.branch_id).all()
+    
     return render_template('bookings/list_bookings.html', bookings=bookings)
 
 @booking_bp.route('/new', methods=['GET', 'POST'])
@@ -48,7 +50,6 @@ def new_booking():
 def new_booking_for_sale(sale_id):
     """
     Create a booking specifically for an existing sale.
-    This route is optional if you want to tie booking to a sale from the start.
     """
     sale = SalesVoucherGroup.query.get_or_404(sale_id)
     form = NewBookingForm()
@@ -78,11 +79,77 @@ def new_booking_for_sale(sale_id):
 def update_booking(booking_id):
     booking = Booking.query.get_or_404(booking_id)
     form = UpdateBookingForm(obj=booking)
+    
+    # Populate branch choices
+    form.branch_id.choices = [(b.id, b.name) for b in Branch.query.all()]
+    
     if form.validate_on_submit():
+        # Update all relevant fields
+        booking.booking_name = form.booking_name.data
+        booking.booking_date = form.booking_date.data
+        booking.time_slot = form.time_slot.data if form.time_slot.data else None
+        booking.branch_id = form.branch_id.data if form.branch_id.data else None
         booking.status = form.status.data
         booking.actual_quantity = form.actual_quantity.data
         booking.noted = form.noted.data
+        
         db.session.commit()
         flash('Booking updated successfully!', 'success')
         return redirect(url_for('booking.list_bookings'))
+    
     return render_template('bookings/update_booking.html', form=form, booking=booking)
+
+@booking_bp.route('/delete_booking/<int:booking_id>', methods=['GET'])
+@login_required
+@roles_required('admin', 'branch_staff')
+def delete_booking(booking_id):
+    booking = Booking.query.get_or_404(booking_id)
+    
+    # Check permissions
+    if current_user.role != 'admin' and booking.branch_id != current_user.branch_id:
+        flash('You do not have permission to delete this booking.', 'danger')
+        return redirect(url_for('booking.list_bookings'))
+    
+    try:
+        db.session.delete(booking)
+        db.session.commit()
+        flash(f'Booking #{booking_id} has been deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'An error occurred while deleting the booking: {str(e)}', 'danger')
+    
+    return redirect(url_for('booking.list_bookings'))
+
+@booking_bp.route('/update_booking_fields/<int:booking_id>', methods=['POST'])
+@login_required
+@roles_required('admin', 'branch_staff')
+def update_booking_fields(booking_id):
+    booking = Booking.query.get_or_404(booking_id)
+    
+    # Check permissions
+    if current_user.role != 'admin' and booking.branch_id != current_user.branch_id:
+        flash('You do not have permission to update this booking.', 'danger')
+        return redirect(url_for('booking.list_bookings'))
+    
+    # Retrieve form data
+    status = request.form.get('status')
+    actual_quantity = request.form.get('actual_quantity')
+    
+    # Validate and update fields
+    if status:
+        booking.status = status
+    if actual_quantity:
+        try:
+            booking.actual_quantity = int(actual_quantity)
+        except ValueError:
+            flash('Actual Quantity must be an integer.', 'danger')
+            return redirect(url_for('booking.list_bookings'))
+    
+    try:
+        db.session.commit()
+        flash(f'Booking #{booking_id} has been updated successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'An error occurred while updating the booking: {str(e)}', 'danger')
+    
+    return redirect(url_for('booking.list_bookings'))

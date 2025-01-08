@@ -1,33 +1,71 @@
 <!-- templates/bookings/update_booking.html -->
+
 {% extends 'base.html' %}
 
 {% block content %}
-<h2>Update Booking #{{ booking.id }}</h2>
+<h2>Edit Booking #{{ booking.id }}</h2>
 <form method="POST">
-    {{ form.hidden_tag() }}
-    <div class="mb-3">
-        {{ form.status.label(class="form-label") }}
-        {{ form.status(class="form-select") }}
-        {% for error in form.status.errors %}
-            <div class="text-danger">{{ error }}</div>
-        {% endfor %}
-    </div>
-    <div class="mb-3">
-        {{ form.actual_quantity.label(class="form-label") }}
-        {{ form.actual_quantity(class="form-control", placeholder="Enter actual quantity") }}
-        {% for error in form.actual_quantity.errors %}
-            <div class="text-danger">{{ error }}</div>
-        {% endfor %}
-    </div>
-    <div class="mb-3">
-        {{ form.noted.label(class="form-label") }}
-        {{ form.noted(class="form-control", placeholder="Enter notes") }}
-        {% for error in form.noted.errors %}
-            <div class="text-danger">{{ error }}</div>
-        {% endfor %}
-    </div>
-    <div class="mb-3">
-        {{ form.submit(class="btn btn-primary") }}
-    </div>
+  {{ form.hidden_tag() }}
+  
+  <div class="mb-3">
+    {{ form.booking_name.label(class="form-label") }}
+    {{ form.booking_name(class="form-control") }}
+    {% for error in form.booking_name.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.booking_date.label(class="form-label") }}
+    {{ form.booking_date(class="form-control") }}
+    {% for error in form.booking_date.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.time_slot.label(class="form-label") }}
+    {{ form.time_slot(class="form-select") }}
+    {% for error in form.time_slot.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.branch_id.label(class="form-label") }}
+    {{ form.branch_id(class="form-select") }}
+    {% for error in form.branch_id.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.status.label(class="form-label") }}
+    {{ form.status(class="form-select") }}
+    {% for error in form.status.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.actual_quantity.label(class="form-label") }}
+    {{ form.actual_quantity(class="form-control") }}
+    {% for error in form.actual_quantity.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.noted.label(class="form-label") }}
+    {{ form.noted(class="form-control") }}
+    {% for error in form.noted.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.submit(class="btn btn-primary") }}
+    <a href="{{ url_for('booking.list_bookings') }}" class="btn btn-secondary">Cancel</a>
+  </div>
 </form>
 {% endblock %}

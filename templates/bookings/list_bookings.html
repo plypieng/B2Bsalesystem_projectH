@@ -1,4 +1,5 @@
 <!-- templates/bookings/list_bookings.html -->
+
 {% extends 'base.html' %}
 
 {% block content %}
@@ -8,7 +9,6 @@
 <table class="table table-striped">
     <thead>
         <tr>
-            <th>ID</th>
             <th>Sale ID</th>
             <th>Booking Name</th>
             <th>Date</th>
@@ -16,25 +16,41 @@
             <th>Status</th>
             <th>Actual Quantity</th>
             <th>Branch</th>
+            <th>Notes</th> <!-- New Notes Column -->
             <th>Actions</th>
         </tr>
     </thead>
     <tbody>
         {% for booking in bookings %}
         <tr>
-            <td>{{ booking.id }}</td>
             <td>{{ booking.voucher_group_sale_id if booking.voucher_group_sale_id else 'N/A' }}</td>
             <td>{{ booking.booking_name if booking.booking_name else '—' }}</td>
             <td>
               {% if booking.booking_date %}
-                {{ booking.booking_date.strftime('%Y-%m-%d') }}
+                {{ booking.booking_date.strftime('%d/%m/%Y') }}
               {% else %}
                 <span class="text-muted">No Date</span>
               {% endif %}
             </td>
             <td>{{ booking.time_slot or '-' }}</td>
-            <td>{{ booking.status.capitalize() }}</td>
-            <td>{{ booking.actual_quantity }}</td>
+            <td>
+                <!-- Inline Status Update Form -->
+                <form action="{{ url_for('booking.update_booking_fields', booking_id=booking.id) }}" method="POST" style="display:inline;">
+                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="not_booked" {% if booking.status == 'not_booked' %}selected{% endif %}>Not Booked</option>
+                        <option value="booked" {% if booking.status == 'booked' %}selected{% endif %}>Booked</option>
+                        <option value="confirmed" {% if booking.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                        <option value="used" {% if booking.status == 'used' %}selected{% endif %}>Used</option>
+                        <option value="canceled" {% if booking.status == 'canceled' %}selected{% endif %}>Canceled</option>
+                    </select>
+                </form>
+            </td>
+            <td>
+                <!-- Inline Actual Quantity Update Form -->
+                <form action="{{ url_for('booking.update_booking_fields', booking_id=booking.id) }}" method="POST" style="display:inline;">
+                    <input type="number" name="actual_quantity" value="{{ booking.actual_quantity }}" min="0" class="form-control form-control-sm" style="width:80px;" onchange="this.form.submit()">
+                </form>
+            </td>
             <td>
               {% if booking.branch %}
                 {{ booking.branch.name }}
@@ -42,8 +58,14 @@
                 <span class="text-muted">No branch</span>
               {% endif %}
             </td>
+            <td>{{ booking.noted or '—' }}</td> <!-- Display Notes -->
             <td>
                 <a href="{{ url_for('booking.update_booking', booking_id=booking.id) }}" class="btn btn-sm btn-primary">Edit</a>
+                <a href="{{ url_for('booking.delete_booking', booking_id=booking.id) }}" 
+                   class="btn btn-sm btn-danger" 
+                   onclick="return confirm('Are you sure you want to delete this booking?');">
+                  Delete
+                </a>
             </td>
         </tr>
         {% endfor %}

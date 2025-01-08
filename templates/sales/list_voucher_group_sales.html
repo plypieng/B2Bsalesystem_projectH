@@ -19,7 +19,7 @@
 <table class="table table-striped">
   <thead>
     <tr>
-      <th>ID</th>
+      <th>Sale ID</th>
       <th>Date</th>
       <th>Salesperson</th>
       <th>Partner Name</th>
@@ -38,7 +38,7 @@
     {% for sale in sales %}
     <tr>
       <td>{{ sale.id }}</td>
-      <td>{{ sale.sale_date.strftime('%Y-%m-%d') if sale.sale_date else '' }}</td>
+      <td>{{ sale.sale_date.strftime('%d/%m/%Y') if sale.sale_date else '' }}</td>
       <td>{{ sale.salesperson.username if sale.salesperson else '' }}</td>
       <td>{{ sale.partner_name }}</td>
       <td>{{ sale.partner_company }}</td>

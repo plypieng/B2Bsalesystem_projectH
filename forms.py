@@ -4,7 +4,8 @@ from wtforms import (
     StringField, PasswordField, SubmitField, BooleanField, SelectField,
     FloatField, TextAreaField, HiddenField, IntegerField, DateField
 )
-from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional
+from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, ValidationError
+import datetime
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
@@ -59,12 +60,32 @@ class B2BCSaleForm(FlaskForm):
     submit = SubmitField('Record Sale')
 
 class UpdateBookingForm(FlaskForm):
-    status = SelectField('Status', choices=[('not_booked', 'Not Booked'), ('booked', 'Booked'), ('confirmed', 'Confirmed'), ('used', 'Used'), ('canceled', 'Canceled')], validators=[DataRequired()])
-    actual_quantity = FloatField('Actual Quantity', validators=[Optional()])
+    booking_name = StringField('Booking Name', validators=[Optional(), Length(max=100)])
+    booking_date = DateField('Booking Date', validators=[Optional()])  # can be optional
+    time_slot = SelectField('Time Slot', choices=[
+        ('08:00','08:00'), ('09:00','09:00'), ('10:00','10:00'),
+        ('11:00','11:00'), ('13:00','13:00'), ('14:00','14:00'),
+        ('15:00','15:00'), ('16:00','16:00'), ('17:00','17:00')
+    ], validators=[Optional()])
+    
+    branch_id = SelectField('Branch', coerce=int, validators=[Optional()])
+    
+    status = SelectField('Status', choices=[
+        ('not_booked', 'Not Booked'),
+        ('booked','Booked'),
+        ('confirmed','Confirmed'),
+        ('used','Used'),
+        ('canceled','Canceled')
+    ], validators=[DataRequired()])
+    
+    actual_quantity = IntegerField('Actual Quantity', validators=[DataRequired()])
     noted = TextAreaField('Notes', validators=[Optional()])
     submit = SubmitField('Update Booking')
-
-# NEW: for creating a brand-new booking from booking page
+    
+    def validate_booking_date(form, field):
+        if field.data and field.data < datetime.date.today():
+            raise ValidationError("Booking date cannot be in the past.")
+        
 class NewBookingForm(FlaskForm):
     booking_name = StringField('Booking Name', validators=[Optional(), Length(max=100)])
     booking_date = DateField('Booking Date', validators=[Optional()])  # can be optional
@@ -86,6 +107,22 @@ class NewBookingForm(FlaskForm):
     
     noted = TextAreaField('Notes', validators=[Optional()])
     submit = SubmitField('Create Booking')
+    
+    def validate_booking_date(form, field):
+        if field.data and field.data < datetime.date.today():
+            raise ValidationError("Booking date cannot be in the past.")
+
+# New Inline Update Form
+class InlineUpdateBookingForm(FlaskForm):
+    status = SelectField('Status', choices=[
+        ('not_booked', 'Not Booked'),
+        ('booked','Booked'),
+        ('confirmed','Confirmed'),
+        ('used','Used'),
+        ('canceled','Canceled')
+    ], validators=[DataRequired()])
+    actual_quantity = IntegerField('Actual Quantity', validators=[DataRequired()])
+    submit = SubmitField('Update')
 
 class ProductForm(FlaskForm):
     id = HiddenField("ID")

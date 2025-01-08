@@ -1,0 +1,2932 @@
+Project Path: B2Bsalesystem_projectH
+
+Source Tree:
+
+```
+B2Bsalesystem_projectH
+├── app.py
+├── config.py
+├── create_admin.py
+├── forms.py
+├── migrations
+│   ├── env.py
+│   └── versions
+│       └── 4163deb3bcd5_initial_migration.py
+├── models.py
+├── requirements.txt
+├── seed_products.py
+├── sheet_to_db.py
+├── static
+│   └── css
+│       └── styles.css
+├── templates
+│   ├── 404.html
+│   ├── 500.html
+│   ├── auth
+│   │   ├── login.html
+│   │   └── register.html
+│   ├── b2bc
+│   │   ├── list_b2bc_sales.html
+│   │   └── new_b2bc_sale.html
+│   ├── base.html
+│   ├── bookings
+│   │   ├── list_bookings.html
+│   │   ├── new_booking.html
+│   │   └── update_booking.html
+│   ├── dashboard.html
+│   ├── products
+│   │   ├── edit_product.html
+│   │   ├── list_products.html
+│   │   └── new_product.html
+│   └── sales
+│       ├── list_voucher_group_sales.html
+│       ├── new_voucher_group_sale.html
+│       └── view_sale.html
+├── utils
+│   └── decorators.py
+└── views
+    ├── auth.py
+    ├── b2bc.py
+    ├── booking.py
+    ├── dashboard.py
+    ├── products.py
+    ├── sales.py
+    └── __init__.py
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\app.py`:
+
+```py
+# app.py
+
+from flask import Flask, redirect, url_for, render_template
+from flask_migrate import Migrate
+from flask_login import LoginManager, current_user
+from models import db, User
+from views.auth import auth_bp
+from views.sales import sales_bp
+from views.b2bc import b2bc_bp
+from views.booking import booking_bp
+from views.dashboard import dashboard_bp
+from views.products import products_bp
+from flask_wtf import CSRFProtect  # Import CSRFProtect if implementing later
+import os
+
+def create_app():
+    app = Flask(__name__)
+    
+    # Determine environment
+    env = os.environ.get('FLASK_ENV', 'development')
+    if env == 'production':
+        app.config.from_object('config.ProductionConfig')
+    else:
+        app.config.from_object('config.DevelopmentConfig')
+    
+    db.init_app(app)
+    migrate = Migrate(app, db)
+    
+    login_manager = LoginManager()
+    login_manager.login_view = 'auth.login'
+    login_manager.init_app(app)
+    
+    # Initialize CSRF Protection (to be implemented later)
+    # csrf = CSRFProtect(app)
+    
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+    
+    # Register Blueprints
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(sales_bp, url_prefix='/sales')
+    app.register_blueprint(b2bc_bp, url_prefix='/b2bc')
+    app.register_blueprint(booking_bp, url_prefix='/bookings')  # Ensure this line exists
+    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+    app.register_blueprint(products_bp, url_prefix='/products')
+    
+    @app.route('/')
+    def home():
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard.dashboard'))
+        else:
+            return redirect(url_for('auth.login'))
+    
+    # Error Handlers
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return render_template('404.html'), 404
+
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        return render_template('500.html'), 500
+    
+    return app
+
+if __name__ == "__main__":
+    app = create_app()
+    app.run(debug=True)
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\config.py`:
+
+```py
+# config.py
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+class Config:
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'SUPERSECRET'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'sqlite:///' + os.path.join(basedir, 'mygym.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SESSION_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+
+class DevelopmentConfig(Config):
+    DEBUG = True
+    SESSION_COOKIE_SECURE = False
+    REMEMBER_COOKIE_SECURE = False
+
+class ProductionConfig(Config):
+    DEBUG = False
+    SESSION_COOKIE_SECURE = True
+    REMEMBER_COOKIE_SECURE = True
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\create_admin.py`:
+
+```py
+# create_admin.py
+from app import create_app
+from models import db, User, Branch
+
+def create_admin():
+    app = create_app()
+    with app.app_context():
+        # Check if an admin user already exists
+        existing_admin = User.query.filter_by(role='admin').first()
+        if existing_admin:
+            print(f"Admin user '{existing_admin.username}' already exists.")
+            return
+
+        # (Optional) Create a branch if needed
+        # branch = Branch(name="Main Branch", location="123 Gym Street", capacity=100)
+        # db.session.add(branch)
+        # db.session.commit()
+
+        # Create the admin user
+        admin_user = User(
+            username="admin",
+            email="admin@example.com",
+            role="admin",
+            branch_id=None  # Set to branch.id if applicable
+        )
+        admin_user.set_password("password")  # Replace with a strong password
+
+        db.session.add(admin_user)
+        db.session.commit()
+
+        print("Admin user 'admin' created successfully.")
+
+if __name__ == "__main__":
+    create_admin()
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\forms.py`:
+
+```py
+# forms.py
+from flask_wtf import FlaskForm
+from wtforms import (
+    StringField, PasswordField, SubmitField, BooleanField, SelectField,
+    FloatField, TextAreaField, HiddenField, IntegerField, DateField
+)
+from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional
+
+class LoginForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
+    password = PasswordField('Password', validators=[DataRequired()])
+    remember = BooleanField('Remember Me')
+    submit = SubmitField('Login')
+
+class RegistrationForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    role = SelectField('Role', choices=[('admin', 'Admin'), ('branch_staff', 'Branch Staff'), ('staff', 'Staff')], validators=[DataRequired()])
+    branch = SelectField('Branch', coerce=int, validators=[Optional()])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Register')
+
+    def validate(self):
+        if not super(RegistrationForm, self).validate():
+            return False
+        if self.role.data == 'branch_staff' and not self.branch.data:
+            self.branch.errors.append('Branch is required for branch staff.')
+            return False
+        return True
+
+class VoucherGroupSaleForm(FlaskForm):
+    id = HiddenField("ID")  # For editing existing record
+    sale_type = SelectField('Sale Type', choices=[('voucher', 'Voucher'), ('group', 'Group')], validators=[DataRequired()])
+    product_id = SelectField('Product', coerce=int, validators=[DataRequired()])
+    
+    partner_name = StringField('Partner Name', validators=[Optional(), Length(max=100)])
+    partner_company = StringField('Partner Company', validators=[Optional(), Length(max=100)])
+    
+    booking_name = StringField('Booking Name', validators=[Optional(), Length(max=100)])
+    
+    quantity = FloatField('Quantity', validators=[DataRequired()])
+    price_per_unit = FloatField('Price per Unit (THB)', validators=[DataRequired()])
+    
+    status = SelectField(
+        'Status',
+        choices=[('waiting', 'Waiting for Payment'), ('paid', 'Paid'), ('canceled', 'Canceled')],
+        validators=[DataRequired()],
+        default='waiting'
+    )
+    
+    noted = TextAreaField('Notes', validators=[Optional()])
+    submit = SubmitField('Submit Sale')
+
+class B2BCSaleForm(FlaskForm):
+    course_name = StringField('Course Name', validators=[DataRequired(), Length(max=100)])
+    price = FloatField('Price', validators=[DataRequired()])
+    noted = TextAreaField('Notes', validators=[Optional()])
+    submit = SubmitField('Record Sale')
+
+class UpdateBookingForm(FlaskForm):
+    status = SelectField('Status', choices=[
+        ('not_booked', 'Not Booked'),
+        ('booked','Booked'),
+        ('confirmed','Confirmed'),
+        ('used','Used'),
+        ('canceled','Canceled')
+    ], validators=[DataRequired()])
+    actual_quantity = IntegerField('Actual Quantity', validators=[DataRequired()])
+    noted = TextAreaField('Notes', validators=[Optional()])
+    submit = SubmitField('Update Booking')
+
+class NewBookingForm(FlaskForm):
+    booking_name = StringField('Booking Name', validators=[Optional(), Length(max=100)])
+    booking_date = DateField('Booking Date', validators=[Optional()])  # can be optional
+    time_slot = SelectField('Time Slot', choices=[
+        ('08:00','08:00'), ('09:00','09:00'), ('10:00','10:00'),
+        ('11:00','11:00'), ('13:00','13:00'), ('14:00','14:00'),
+        ('15:00','15:00'), ('16:00','16:00'), ('17:00','17:00')
+    ], validators=[Optional()])
+    
+    branch_id = SelectField('Branch', coerce=int, validators=[Optional()])
+    
+    status = SelectField('Status', choices=[
+        ('not_booked', 'Not Booked'),
+        ('booked','Booked'),
+        ('confirmed','Confirmed'),
+        ('used','Used'),
+        ('canceled','Canceled')
+    ], default='not_booked')
+    
+    noted = TextAreaField('Notes', validators=[Optional()])
+    submit = SubmitField('Create Booking')
+    
+    def validate_booking_date(form, field):
+        if field.data and field.data < datetime.date.today():
+            raise ValidationError("Booking date cannot be in the past.")
+
+# New Inline Update Form
+class InlineUpdateBookingForm(FlaskForm):
+    status = SelectField('Status', choices=[
+        ('not_booked', 'Not Booked'),
+        ('booked','Booked'),
+        ('confirmed','Confirmed'),
+        ('used','Used'),
+        ('canceled','Canceled')
+    ], validators=[DataRequired()])
+    actual_quantity = IntegerField('Actual Quantity', validators=[DataRequired()])
+    submit = SubmitField('Update')
+
+class ProductForm(FlaskForm):
+    id = HiddenField("ID")
+    name = StringField("Name", validators=[DataRequired(), Length(max=100)])
+    category = StringField("Category", validators=[DataRequired(), Length(max=50)])
+    default_price = FloatField("Price", validators=[DataRequired()])
+    submit = SubmitField("Save")
+```
+
+`\\?\C:\B2Bsalesystem_projectH\migrations\env.py`:
+
+```py
+import logging
+from logging.config import fileConfig
+
+from flask import current_app
+
+from alembic import context
+
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
+config = context.config
+
+# Interpret the config file for Python logging.
+# This line sets up loggers basically.
+fileConfig(config.config_file_name)
+logger = logging.getLogger('alembic.env')
+
+
+def get_engine():
+    try:
+        # this works with Flask-SQLAlchemy<3 and Alchemical
+        return current_app.extensions['migrate'].db.get_engine()
+    except (TypeError, AttributeError):
+        # this works with Flask-SQLAlchemy>=3
+        return current_app.extensions['migrate'].db.engine
+
+
+def get_engine_url():
+    try:
+        return get_engine().url.render_as_string(hide_password=False).replace(
+            '%', '%%')
+    except AttributeError:
+        return str(get_engine().url).replace('%', '%%')
+
+
+# add your model's MetaData object here
+# for 'autogenerate' support
+# from myapp import mymodel
+# target_metadata = mymodel.Base.metadata
+config.set_main_option('sqlalchemy.url', get_engine_url())
+target_db = current_app.extensions['migrate'].db
+
+# other values from the config, defined by the needs of env.py,
+# can be acquired:
+# my_important_option = config.get_main_option("my_important_option")
+# ... etc.
+
+
+def get_metadata():
+    if hasattr(target_db, 'metadatas'):
+        return target_db.metadatas[None]
+    return target_db.metadata
+
+
+def run_migrations_offline():
+    """Run migrations in 'offline' mode.
+
+    This configures the context with just a URL
+    and not an Engine, though an Engine is acceptable
+    here as well.  By skipping the Engine creation
+    we don't even need a DBAPI to be available.
+
+    Calls to context.execute() here emit the given string to the
+    script output.
+
+    """
+    url = config.get_main_option("sqlalchemy.url")
+    context.configure(
+        url=url, target_metadata=get_metadata(), literal_binds=True
+    )
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online():
+    """Run migrations in 'online' mode.
+
+    In this scenario we need to create an Engine
+    and associate a connection with the context.
+
+    """
+
+    # this callback is used to prevent an auto-migration from being generated
+    # when there are no changes to the schema
+    # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
+    def process_revision_directives(context, revision, directives):
+        if getattr(config.cmd_opts, 'autogenerate', False):
+            script = directives[0]
+            if script.upgrade_ops.is_empty():
+                directives[:] = []
+                logger.info('No changes in schema detected.')
+
+    conf_args = current_app.extensions['migrate'].configure_args
+    if conf_args.get("process_revision_directives") is None:
+        conf_args["process_revision_directives"] = process_revision_directives
+
+    connectable = get_engine()
+
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=get_metadata(),
+            **conf_args
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\migrations\versions\4163deb3bcd5_initial_migration.py`:
+
+```py
+"""Initial migration
+
+Revision ID: 4163deb3bcd5
+Revises: 
+Create Date: 2025-01-03 03:33:49.786181
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision = '4163deb3bcd5'
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.create_table('branches',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('location', sa.String(length=255), nullable=True),
+    sa.Column('capacity', sa.Integer(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('commission_rules',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('min_amount', sa.Float(), nullable=False),
+    sa.Column('max_amount', sa.Float(), nullable=False),
+    sa.Column('rate', sa.Float(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('products',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('category', sa.String(length=50), nullable=False),
+    sa.Column('default_price', sa.Float(), nullable=True),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('users',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('username', sa.String(length=50), nullable=False),
+    sa.Column('email', sa.String(length=120), nullable=False),
+    sa.Column('password_hash', sa.String(length=255), nullable=False),
+    sa.Column('role', sa.String(length=50), nullable=False),
+    sa.Column('branch_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['branch_id'], ['branches.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('email'),
+    sa.UniqueConstraint('username')
+    )
+    op.create_table('sales_b2bc',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('sale_date', sa.DateTime(), nullable=True),
+    sa.Column('course_name', sa.String(length=100), nullable=False),
+    sa.Column('price', sa.Float(), nullable=True),
+    sa.Column('commission_rate', sa.Float(), nullable=True),
+    sa.Column('commission_amount', sa.Float(), nullable=True),
+    sa.Column('user_id', sa.Integer(), nullable=True),
+    sa.Column('branch_id', sa.Integer(), nullable=True),
+    sa.Column('noted', sa.Text(), nullable=True),
+    sa.ForeignKeyConstraint(['branch_id'], ['branches.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('sales_voucher_group',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('sale_date', sa.DateTime(), nullable=True),
+    sa.Column('sale_type', sa.String(length=50), nullable=False),
+    sa.Column('product_name', sa.String(length=100), nullable=True),
+    sa.Column('quantity', sa.Integer(), nullable=True),
+    sa.Column('price_per_unit', sa.Float(), nullable=True),
+    sa.Column('total_price', sa.Float(), nullable=True),
+    sa.Column('vat_7', sa.Float(), nullable=True),
+    sa.Column('total_sale', sa.Float(), nullable=True),
+    sa.Column('partner_name', sa.String(length=100), nullable=True),
+    sa.Column('partner_company', sa.String(length=100), nullable=True),
+    sa.Column('branch_id', sa.Integer(), nullable=True),
+    sa.Column('noted', sa.Text(), nullable=True),
+    sa.Column('salesperson_id', sa.Integer(), nullable=True),
+    sa.Column('status', sa.String(length=50), nullable=True),
+    sa.ForeignKeyConstraint(['branch_id'], ['branches.id'], ),
+    sa.ForeignKeyConstraint(['salesperson_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('bookings',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('voucher_group_sale_id', sa.Integer(), nullable=True),
+    sa.Column('booking_name', sa.String(length=100), nullable=True),
+    sa.Column('booking_date', sa.Date(), nullable=True),
+    sa.Column('time_slot', sa.String(length=50), nullable=True),
+    sa.Column('status', sa.String(length=50), nullable=True),
+    sa.Column('actual_quantity', sa.Integer(), nullable=True),
+    sa.Column('noted', sa.Text(), nullable=True),
+    sa.Column('branch_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['branch_id'], ['branches.id'], ),
+    sa.ForeignKeyConstraint(['voucher_group_sale_id'], ['sales_voucher_group.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    # ### end Alembic commands ###
+
+
+def downgrade():
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table('bookings')
+    op.drop_table('sales_voucher_group')
+    op.drop_table('sales_b2bc')
+    op.drop_table('users')
+    op.drop_table('products')
+    op.drop_table('commission_rules')
+    op.drop_table('branches')
+    # ### end Alembic commands ###
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\models.py`:
+
+```py
+# models.py
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
+from datetime import datetime
+from flask_bcrypt import Bcrypt
+
+db = SQLAlchemy()
+bcrypt = Bcrypt()
+
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(50), nullable=False, default='staff')
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)
+    
+    b2bc_sales = db.relationship('SalesB2BC', backref='salesperson', lazy=True)
+    branch = db.relationship('Branch', backref='users')
+    
+    def set_password(self, password):
+        self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+    
+    def check_password(self, password):
+        return bcrypt.check_password_hash(self.password_hash, password)
+    
+    def __repr__(self):
+        return f"<User {self.username}>"
+
+class Branch(db.Model):
+    __tablename__ = 'branches'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    location = db.Column(db.String(255))
+    capacity = db.Column(db.Integer, default=100)
+    
+    voucher_group_sales = db.relationship('SalesVoucherGroup', backref='branch', lazy=True)
+    bookings = db.relationship('Booking', backref='branch', lazy=True)
+    b2bc_sales = db.relationship('SalesB2BC', backref='branch', lazy=True)
+    
+    def __repr__(self):
+        return f"<Branch {self.name}>"
+
+class SalesVoucherGroup(db.Model):
+    __tablename__ = 'sales_voucher_group'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sale_date = db.Column(db.DateTime, default=datetime.utcnow)
+    sale_type = db.Column(db.String(50), nullable=False)
+    
+    product_name = db.Column(db.String(100), nullable=True)
+    
+    quantity = db.Column(db.Integer, default=1)
+    price_per_unit = db.Column(db.Float, default=0.0)
+    total_price = db.Column(db.Float, default=0.0)
+    vat_7 = db.Column(db.Float, default=0.0)
+    total_sale = db.Column(db.Float, default=0.0)
+    
+    partner_name = db.Column(db.String(100))
+    partner_company = db.Column(db.String(100))
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)
+    
+    noted = db.Column(db.Text)
+    sale_date = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    salesperson_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    status = db.Column(db.String(50), default='waiting')
+    
+    salesperson = db.relationship('User', backref='voucher_group_sales', foreign_keys=[salesperson_id])
+    
+    bookings = db.relationship(
+        'Booking',
+        backref='voucher_group_sale',
+        lazy=True,
+        cascade='all, delete-orphan',
+        passive_deletes=True
+    )
+
+    def __repr__(self):
+        return f"<SalesVoucherGroup (id={self.id}, type={self.sale_type})>"
+
+    def compute_activity_group_price(self):
+        brackets_on_site = [(10, 900), (15, 850), (20, 800), (30, 750), (40, 700), (50, 650)]
+        brackets_off_site = [(20, 1300), (40, 1100), (60, 1000), (80, 950), (100, 850)]
+
+        if 'On-site' in (self.product_name or ''):
+            bracket_list = brackets_on_site
+        elif 'Off-site' in (self.product_name or ''):
+            bracket_list = brackets_off_site
+        else:
+            return
+
+        q = self.quantity or 0
+        bracket_list = sorted(bracket_list, key=lambda x: x[0])
+        chosen_bracket_price = None
+        for bracket_people, bracket_price in bracket_list:
+            if q <= bracket_people:
+                chosen_bracket_price = bracket_price
+                break
+        if not chosen_bracket_price:
+            chosen_bracket_price = bracket_list[-1][1]
+
+        self.price_per_unit = chosen_bracket_price
+
+class Booking(db.Model):
+    __tablename__ = 'bookings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    
+    voucher_group_sale_id = db.Column(
+        db.Integer, 
+        db.ForeignKey('sales_voucher_group.id', ondelete='CASCADE'),
+        nullable=True
+    )
+    booking_name = db.Column(db.String(100), nullable=True)
+    
+    booking_date = db.Column(db.Date)
+    time_slot = db.Column(db.String(50))
+    status = db.Column(db.String(50), default='not_booked')
+    actual_quantity = db.Column(db.Integer, default=0)
+    noted = db.Column(db.Text)
+    
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)
+    
+    def __repr__(self):
+        return f"<Booking (id={self.id}, name={self.booking_name}, status={self.status})>"
+
+class SalesB2BC(db.Model):
+    __tablename__ = 'sales_b2bc'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sale_date = db.Column(db.DateTime, default=datetime.utcnow)
+    course_name = db.Column(db.String(100), nullable=False)
+    price = db.Column(db.Float, default=0.0)
+    commission_rate = db.Column(db.Float, default=0.0)
+    commission_amount = db.Column(db.Float, default=0.0)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
+    noted = db.Column(db.Text)
+
+    def __repr__(self):
+        return f"<SalesB2BC (id={self.id}, course={self.course_name})>"
+
+class CommissionRule(db.Model):
+    __tablename__ = 'commission_rules'
+
+    id = db.Column(db.Integer, primary_key=True)
+    min_amount = db.Column(db.Float, nullable=False)
+    max_amount = db.Column(db.Float, nullable=False)
+    rate = db.Column(db.Float, nullable=False)
+
+    def __repr__(self):
+        return f"<CommissionRule {self.min_amount} - {self.max_amount} @ {self.rate}>"
+
+class Product(db.Model):
+    __tablename__ = 'products'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+    default_price = db.Column(db.Float, default=0.0)
+    description = db.Column(db.Text)
+
+    def __repr__(self):
+        return f"<Product {self.name} (category={self.category}, price={self.default_price})>"
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\requirements.txt`:
+
+```txt
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-Login
+Flask-WTF
+WTForms
+email-validator
+Flask-Bcrypt
+python-dotenv
+psycopg2-binary  # If using PostgreSQL
+# or
+mysqlclient==2.1.1  # If using MySQL
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\seed_products.py`:
+
+```py
+# seed_products.py
+from app import create_app
+from models import db, Product
+
+def seed_products():
+    app = create_app()
+    with app.app_context():
+        # Example: Add or update each product
+        items = [
+            Product(name="1 Day Pass (Group)", category="voucher", default_price=750),
+            Product(name="2 Day Pass (Group)", category="voucher", default_price=1300),
+            Product(name="3 Day Pass (Group)", category="voucher", default_price=1800),
+            Product(name="1 Day Pass (PV)", category="voucher", default_price=1390),
+            Product(name="2 Day Pass (PV)", category="voucher", default_price=2500),
+            Product(name="3 Day Pass (PV)", category="voucher", default_price=3450),
+            Product(name="Activities Group (On-site, 10p)", category="activities_group", default_price=900),
+            # ... etc. fill in for 15p, 20p, ...
+            Product(name="Activities Group (Off-site, 20p)", category="activities_group", default_price=1300),
+            # ...
+            Product(name="B2BC Base", category="b2bc", default_price=0),
+        ]
+
+        for item in items:
+            # check if product already in db
+            existing = Product.query.filter_by(name=item.name).first()
+            if existing:
+                existing.default_price = item.default_price
+                existing.category = item.category
+            else:
+                db.session.add(item)
+
+        db.session.commit()
+        print("Products seeded successfully.")
+
+if __name__ == "__main__":
+    seed_products()
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\sheet_to_db.py`:
+
+```py
+# sheet_to_db.py
+import gspread
+from google.oauth2.service_account import Credentials
+from app import create_app
+from models import db, SalesVoucherGroup, SalesB2BC, Booking, Branch, User
+import datetime
+from flask import flash
+
+def get_worksheet(sheet_name, worksheet_title):
+    """
+    Returns a gspread worksheet object given a sheet name and a worksheet title.
+    """
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = Credentials.from_service_account_file("path/to/your_service_account.json", scopes=scope)
+    client = gspread.authorize(creds)
+    sheet = client.open(sheet_name)
+    return sheet.worksheet(worksheet_title)
+
+def migrate_p2v_to_db():
+    # Example: read the "P2V" tab in your spreadsheet
+    ws = get_worksheet("ProjectH_Sales", "P2V")
+    data = ws.get_all_records()
+    
+    for row in data:
+        sale_date_str = row.get("Sale Date")
+        sale_date = datetime.datetime.strptime(sale_date_str, '%Y-%m-%d') if sale_date_str else datetime.datetime.utcnow()
+        
+        product_name = row.get("Voucher Type")
+        quantity = row.get("Quantity Sold", 1)
+        price_per_unit = float(row.get("Price (Per Unit)", 0))
+        total_price = float(row.get("Total Price", 0))
+        vat_7 = float(row.get("Vat 7%", 0))
+        total_sale = float(row.get("Total Sale", 0))
+        partner_name = row.get("Partner Name", "")
+        branch_name = row.get("Branch Name", "Default Branch")
+        
+        # Ensure branch exists
+        branch = Branch.query.filter_by(name=branch_name).first()
+        if not branch:
+            branch = Branch(name=branch_name, location="Unknown Location")
+            db.session.add(branch)
+            db.session.commit()
+        
+        sale = SalesVoucherGroup(
+            sale_date=sale_date,
+            sale_type="voucher",
+            product_name=product_name,
+            quantity=int(quantity),
+            price_per_unit=price_per_unit,
+            total_price=total_price,
+            vat_7=vat_7,
+            total_sale=total_sale,
+            partner_name=partner_name,
+            branch_id=branch.id,
+            noted=row.get("Notes", "")
+        )
+        db.session.add(sale)
+        
+        # If there's a booking date, create a booking
+        booking_date_str = row.get("Booking Date")
+        if booking_date_str:
+            booking_date = datetime.datetime.strptime(booking_date_str, '%Y-%m-%d').date()
+            time_slot = row.get("Time", "")
+            booking = Booking(
+                voucher_group_sale_id=sale.id,
+                booking_date=booking_date,
+                time_slot=time_slot,
+                status='booked',
+                branch_id=branch.id,
+                noted=row.get("Booking Notes", "")
+            )
+            db.session.add(booking)
+    
+    db.session.commit()
+
+def migrate_b2bc_to_db():
+    # Read the "B2BC" tab
+    ws = get_worksheet("ProjectH_Sales", "B2BC")
+    data = ws.get_all_records()
+
+    for row in data:
+        sale_date_str = row.get("Sale Date")
+        sale_date = datetime.datetime.strptime(sale_date_str, '%Y-%m-%d') if sale_date_str else datetime.datetime.utcnow()
+        
+        course_name = row.get("Course Name", "Muay Thai Course")
+        price = float(row.get("Price", 0))
+        commission_rate = float(row.get("Commission Rate", 0.1))
+        commission_amount = price * commission_rate
+        branch_name = row.get("Branch Name", "Default Branch")
+        
+        # Ensure branch exists
+        branch = Branch.query.filter_by(name=branch_name).first()
+        if not branch:
+            branch = Branch(name=branch_name, location="Unknown Location")
+            db.session.add(branch)
+            db.session.commit()
+        
+        # Ensure the salesperson exists
+        salesperson_username = row.get("Salesperson", "admin")
+        salesperson = User.query.filter_by(username=salesperson_username).first()
+        if not salesperson:
+            salesperson = User(username='admin', email='admin@example.com', role='admin', branch_id=branch.id)
+            salesperson.set_password('adminpassword')
+            db.session.add(salesperson)
+            db.session.commit()
+        
+        sale = SalesB2BC(
+            sale_date=sale_date,
+            course_name=course_name,
+            price=price,
+            commission_rate=commission_rate,
+            commission_amount=commission_amount,
+            user_id=salesperson.id,
+            branch_id=branch.id,
+            noted=row.get("Notes", "")
+        )
+        db.session.add(sale)
+    
+    db.session.commit()
+
+def main():
+    app = create_app()
+    with app.app_context():
+        migrate_p2v_to_db()
+        migrate_b2bc_to_db()
+        print("Data migrated successfully.")
+
+if __name__ == "__main__":
+    main()
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\static\css\styles.css`:
+
+```css
+/* static/css/styles.css */
+/* Add custom styles here */
+body {
+    padding-top: 60px;
+}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\404.html`:
+
+```html
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="text-center mt-5">
+    <h1>404</h1>
+    <p>Page Not Found.</p>
+    <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+</div>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\500.html`:
+
+```html
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="text-center mt-5">
+    <h1>500</h1>
+    <p>Internal Server Error.</p>
+    <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+</div>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\auth\login.html`:
+
+```html
+<!-- templates/auth/login.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2>Login</h2>
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            <div class="mb-3">
+                {{ form.username.label(class="form-label") }}
+                {{ form.username(class="form-control", placeholder="Enter your username") }}
+                {% for error in form.username.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="mb-3">
+                {{ form.password.label(class="form-label") }}
+                {{ form.password(class="form-control", placeholder="Enter your password") }}
+                {% for error in form.password.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="form-check mb-3">
+                {{ form.remember(class="form-check-input") }}
+                {{ form.remember.label(class="form-check-label") }}
+            </div>
+            <div class="mb-3">
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+        <p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a>.</p>
+    </div>
+</div>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\auth\register.html`:
+
+```html
+<!-- templates/auth/register.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2>Register New User</h2>
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            <div class="mb-3">
+                {{ form.username.label(class="form-label") }}
+                {{ form.username(class="form-control", placeholder="Enter username") }}
+                {% for error in form.username.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="mb-3">
+                {{ form.email.label(class="form-label") }}
+                {{ form.email(class="form-control", placeholder="Enter email") }}
+                {% for error in form.email.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="mb-3">
+                {{ form.role.label(class="form-label") }}
+                {{ form.role(class="form-select", id="roleSelect") }}
+                {% for error in form.role.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="mb-3" id="branchDiv" style="display: none;">
+                {{ form.branch.label(class="form-label") }}
+                {{ form.branch(class="form-select") }}
+                {% for error in form.branch.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="mb-3">
+                {{ form.password.label(class="form-label") }}
+                {{ form.password(class="form-control", placeholder="Enter password") }}
+                {% for error in form.password.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="mb-3">
+                {{ form.confirm_password.label(class="form-label") }}
+                {{ form.confirm_password(class="form-control", placeholder="Confirm password") }}
+                {% for error in form.confirm_password.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="mb-3">
+                {{ form.submit(class="btn btn-success") }}
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.getElementById('roleSelect').addEventListener('change', function() {
+        var branchDiv = document.getElementById('branchDiv');
+        if (this.value === 'branch_staff') {
+            branchDiv.style.display = 'block';
+        } else {
+            branchDiv.style.display = 'none';
+        }
+    });
+
+    // Trigger change event on page load to set initial state
+    document.getElementById('roleSelect').dispatchEvent(new Event('change'));
+</script>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\b2bc\list_b2bc_sales.html`:
+
+```html
+<!-- templates/b2bc/list_b2bc_sales.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>B2BC Sales</h2>
+<a href="{{ url_for('b2bc.new_b2bc_sale') }}" class="btn btn-success mb-3">New B2BC Sale</a>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Date</th>
+            <th>Course</th>
+            <th>Price</th>
+            <th>Commission</th>
+            <th>Salesperson</th>
+            <th>Branch</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for sale in sales %}
+        <tr>
+            <td>{{ sale.id }}</td>
+            <td>{{ sale.sale_date.strftime('%Y-%m-%d') }}</td>
+            <td>{{ sale.course_name }}</td>
+            <td>{{ "%.2f"|format(sale.price) }}</td>
+            <td>{{ "%.2f"|format(sale.commission_amount) }}</td>
+            <td>{{ sale.salesperson.username }}</td>
+            <td>{{ sale.branch.name }}</td>
+            <td>
+                <!-- Add action buttons like view, edit, delete if needed -->
+                <!-- Example: -->
+                <!-- <a href="{{ url_for('b2bc.view_sale', sale_id=sale.id) }}" class="btn btn-sm btn-info">View</a> -->
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\b2bc\new_b2bc_sale.html`:
+
+```html
+<!-- templates/b2bc/new_b2bc_sale.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>New B2BC Sale</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+        {{ form.course_name.label(class="form-label") }}
+        {{ form.course_name(class="form-control", placeholder="Enter course name") }}
+        {% for error in form.course_name.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.price.label(class="form-label") }}
+        {{ form.price(class="form-control", placeholder="Enter price") }}
+        {% for error in form.price.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.branch.label(class="form-label") }}
+        {{ form.branch(class="form-select") }}
+        {% for error in form.branch.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.noted.label(class="form-label") }}
+        {{ form.noted(class="form-control", placeholder="Enter notes") }}
+        {% for error in form.noted.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="mb-3">
+        {{ form.submit(class="btn btn-primary") }}
+    </div>
+</form>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\base.html`:
+
+```html
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Muay Thai Gym Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+<body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="container mt-3">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    
+    <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('dashboard.dashboard') }}"><img src="{{ url_for('static', filename='favicon.ico') }}"> Project H : B2B Sales Management</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        {% if current_user.is_authenticated %}
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('sales.list_voucher_group_sales') }}">Sales</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('b2bc.list_b2bc_sales') }}">B2BC</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('booking.list_bookings') }}">Bookings</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.dashboard') }}">Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('products.list_products') }}">Products</a></li>
+            {% if current_user.role == 'admin' %}
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.register') }}">Register User</a></li>
+            {% endif %}
+          </ul>
+          <span class="navbar-text me-3">
+            Logged in as {{ current_user.username }}
+          </span>
+          <a class="btn btn-outline-light" href="{{ url_for('auth.logout') }}">Logout</a>
+        </div>
+        {% endif %}
+      </div>
+    </nav>
+    
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+</body>
+</html>
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\bookings\list_bookings.html`:
+
+```html
+<!-- templates/bookings/list_bookings.html -->
+
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Bookings</h2>
+<a href="{{ url_for('booking.new_booking') }}" class="btn btn-success mb-3">Create New Booking (Generic)</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Sale ID</th>
+            <th>Booking Name</th>
+            <th>Date</th>
+            <th>Time Slot</th>
+            <th>Status</th>
+            <th>Actual Quantity</th>
+            <th>Branch</th>
+            <th>Notes</th> <!-- New Notes Column -->
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for booking in bookings %}
+        <tr>
+            <td>{{ booking.id }}</td>
+            <td>{{ booking.voucher_group_sale_id if booking.voucher_group_sale_id else 'N/A' }}</td>
+            <td>{{ booking.booking_name if booking.booking_name else '—' }}</td>
+            <td>
+              {% if booking.booking_date %}
+                {{ booking.booking_date.strftime('%Y-%m-%d') }}
+              {% else %}
+                <span class="text-muted">No Date</span>
+              {% endif %}
+            </td>
+            <td>{{ booking.time_slot or '-' }}</td>
+            <td>
+                <!-- Inline Status Update Form -->
+                <form action="{{ url_for('booking.update_booking_fields', booking_id=booking.id) }}" method="POST" style="display:inline;">
+                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="not_booked" {% if booking.status == 'not_booked' %}selected{% endif %}>Not Booked</option>
+                        <option value="booked" {% if booking.status == 'booked' %}selected{% endif %}>Booked</option>
+                        <option value="confirmed" {% if booking.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                        <option value="used" {% if booking.status == 'used' %}selected{% endif %}>Used</option>
+                        <option value="canceled" {% if booking.status == 'canceled' %}selected{% endif %}>Canceled</option>
+                    </select>
+                </form>
+            </td>
+            <td>
+                <!-- Inline Actual Quantity Update Form -->
+                <form action="{{ url_for('booking.update_booking_fields', booking_id=booking.id) }}" method="POST" style="display:inline;">
+                    <input type="number" name="actual_quantity" value="{{ booking.actual_quantity }}" min="0" class="form-control form-control-sm" style="width:80px;" onchange="this.form.submit()">
+                </form>
+            </td>
+            <td>
+              {% if booking.branch %}
+                {{ booking.branch.name }}
+              {% else %}
+                <span class="text-muted">No branch</span>
+              {% endif %}
+            </td>
+            <td>{{ booking.noted or '—' }}</td> <!-- Display Notes -->
+            <td>
+                <a href="{{ url_for('booking.update_booking', booking_id=booking.id) }}" class="btn btn-sm btn-primary">Edit</a>
+                <a href="{{ url_for('booking.delete_booking', booking_id=booking.id) }}" 
+                   class="btn btn-sm btn-danger" 
+                   onclick="return confirm('Are you sure you want to delete this booking?');">
+                  Delete
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\bookings\new_booking.html`:
+
+```html
+<!-- templates/bookings/new_booking.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Create a New Booking</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    
+    <div class="mb-3">
+        {{ form.booking_name.label(class="form-label") }}
+        {{ form.booking_name(class="form-control") }}
+        {% for error in form.booking_name.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.booking_date.label(class="form-label") }}
+        {{ form.booking_date(class="form-control") }}
+        {% for error in form.booking_date.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.time_slot.label(class="form-label") }}
+        {{ form.time_slot(class="form-select") }}
+        {% for error in form.time_slot.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.branch_id.label(class="form-label") }}
+        {{ form.branch_id(class="form-select") }}
+        {% for error in form.branch_id.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.status.label(class="form-label") }}
+        {{ form.status(class="form-select") }}
+        {% for error in form.status.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.noted.label(class="form-label") }}
+        {{ form.noted(class="form-control") }}
+        {% for error in form.noted.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div>
+        {{ form.submit(class="btn btn-success") }}
+    </div>
+</form>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\bookings\update_booking.html`:
+
+```html
+<!-- templates/bookings/update_booking.html -->
+
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Edit Booking #{{ booking.id }}</h2>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  
+  <div class="mb-3">
+    {{ form.booking_name.label(class="form-label") }}
+    {{ form.booking_name(class="form-control") }}
+    {% for error in form.booking_name.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.booking_date.label(class="form-label") }}
+    {{ form.booking_date(class="form-control") }}
+    {% for error in form.booking_date.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.time_slot.label(class="form-label") }}
+    {{ form.time_slot(class="form-select") }}
+    {% for error in form.time_slot.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.branch_id.label(class="form-label") }}
+    {{ form.branch_id(class="form-select") }}
+    {% for error in form.branch_id.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.status.label(class="form-label") }}
+    {{ form.status(class="form-select") }}
+    {% for error in form.status.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.actual_quantity.label(class="form-label") }}
+    {{ form.actual_quantity(class="form-control") }}
+    {% for error in form.actual_quantity.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.noted.label(class="form-label") }}
+    {{ form.noted(class="form-control") }}
+    {% for error in form.noted.errors %}
+      <div class="text-danger">{{ error }}</div>
+    {% endfor %}
+  </div>
+  
+  <div class="mb-3">
+    {{ form.submit(class="btn btn-primary") }}
+    <a href="{{ url_for('booking.list_bookings') }}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\dashboard.html`:
+
+```html
+<!-- templates/dashboard/dashboard.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<!-- KPI Cards -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-header">Total Revenue Today</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(total_revenue_today) }} THB</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-header">Total Revenue This Month</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(total_revenue_month) }} THB</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-header">Total Revenue This Year</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(total_revenue_year) }} THB</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning mb-3">
+            <div class="card-header">Commission This Month</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(commission_month) }} THB</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-white bg-secondary mb-3">
+            <div class="card-header">Bookings Today</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ bookings_today }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-dark mb-3">
+            <div class="card-header">Bookings This Week</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ bookings_week }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger mb-3">
+            <div class="card-header">Utilization Rate</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(utilization_rate) }}%</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Breakdown Chart -->
+<div class="row">
+    <div class="col-md-6">
+        <canvas id="salesBreakdownChart"></canvas>
+    </div>
+    <div class="col-md-6">
+        <canvas id="salesTrendChart"></canvas>
+    </div>
+</div>
+
+<!-- Top Products and Partners Charts -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <canvas id="topProductsChart"></canvas>
+    </div>
+    <div class="col-md-6">
+        <canvas id="topPartnersChart"></canvas>
+    </div>
+</div>
+
+<!-- Commission & Profit Overview -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">Gross Revenue</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(gross_revenue) }} THB</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">Commission Paid</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(total_commission) }} THB</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">Net Revenue</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.2f"|format(net_revenue) }} THB</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Branch Comparisons -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <h3>Revenue by Branch</h3>
+        <canvas id="branchRevenueChart"></canvas>
+    </div>
+    <div class="col-md-6">
+        <h3>Bookings by Branch</h3>
+        <canvas id="branchBookingsChart"></canvas>
+    </div>
+</div>
+
+<!-- Charts Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Sales Breakdown Chart
+    var ctx = document.getElementById('salesBreakdownChart').getContext('2d');
+    var salesBreakdownChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: [{% for type, count in sales_breakdown %}'{{ type }}',{% endfor %}],
+            datasets: [{
+                data: [{% for type, count in sales_breakdown %}{{ count }},{% endfor %}],
+                backgroundColor: ['#007bff','#28a745','#dc3545','#ffc107']
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Sales Trend Chart
+    var ctx2 = document.getElementById('salesTrendChart').getContext('2d');
+    var salesTrendChart = new Chart(ctx2, {
+        type: 'line',
+        data: {
+            labels: [{% for date, total in sales_trend %}'{{ date }}',{% endfor %}],
+            datasets: [{
+                label: 'Daily Sales (THB)',
+                data: [{% for date, total in sales_trend %}{{ total }},{% endfor %}],
+                borderColor: '#28a745',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Top Products Chart
+    var ctx3 = document.getElementById('topProductsChart').getContext('2d');
+    var topProductsChart = new Chart(ctx3, {
+        type: 'bar',
+        data: {
+            labels: [{% for product, count in top_products %}'{{ product }}',{% endfor %}],
+            datasets: [{
+                label: 'Quantity Sold',
+                data: [{% for product, count in top_products %}{{ count }},{% endfor %}],
+                backgroundColor: '#ffc107'
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Top Partners Chart
+    var ctx4 = document.getElementById('topPartnersChart').getContext('2d');
+    var topPartnersChart = new Chart(ctx4, {
+        type: 'bar',
+        data: {
+            labels: [{% for partner, total in top_partners %}'{{ partner }}',{% endfor %}],
+            datasets: [{
+                label: 'Total Revenue (THB)',
+                data: [{% for partner, total in top_partners %}{{ total }},{% endfor %}],
+                backgroundColor: '#17a2b8'
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Branch Revenue Chart
+    var ctx5 = document.getElementById('branchRevenueChart').getContext('2d');
+    var branchRevenueChart = new Chart(ctx5, {
+        type: 'bar',
+        data: {
+            labels: [{% for branch, revenue in branch_revenue %}'{{ branch }}',{% endfor %}],
+            datasets: [{
+                label: 'Revenue (THB)',
+                data: [{% for branch, revenue in branch_revenue %}{{ revenue }},{% endfor %}],
+                backgroundColor: '#6f42c1'
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Branch Bookings Chart
+    var ctx6 = document.getElementById('branchBookingsChart').getContext('2d');
+    var branchBookingsChart = new Chart(ctx6, {
+        type: 'bar',
+        data: {
+            labels: [{% for branch, bookings in branch_bookings %}'{{ branch }}',{% endfor %}],
+            datasets: [{
+                label: 'Bookings',
+                data: [{% for branch, bookings in branch_bookings %}{{ bookings }},{% endfor %}],
+                backgroundColor: '#fd7e14'
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+</script>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\products\edit_product.html`:
+
+```html
+{% extends 'base.html' %}
+{% block content %}
+<h2>Edit Product: {{ product.name }}</h2>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    {{ form.name.label(class="form-label") }}
+    {{ form.name(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.category.label(class="form-label") }}
+    {{ form.category(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.default_price.label(class="form-label") }}
+    {{ form.default_price(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.submit(class="btn btn-success") }}
+  </div>
+</form>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\products\list_products.html`:
+
+```html
+{% extends 'base.html' %}
+{% block content %}
+<h2>Manage Products</h2>
+<a href="{{ url_for('products.new_product') }}" class="btn btn-primary mb-3">Add New</a>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Category</th>
+      <th>Price</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in products %}
+    <tr>
+      <td>{{ p.name }}</td>
+      <td>{{ p.category }}</td>
+      <td>{{ p.default_price }}</td>
+      <td>
+        <a href="{{ url_for('products.edit_product', product_id=p.id) }}" class="btn btn-sm btn-primary">Edit</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\products\new_product.html`:
+
+```html
+<!-- templates/products/new_product.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>Add New Product</h2>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    {{ form.name.label(class="form-label") }}
+    {{ form.name(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.category.label(class="form-label") }}
+    {{ form.category(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.default_price.label(class="form-label") }}
+    {{ form.default_price(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.submit(class="btn btn-primary") }}
+  </div>
+</form>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\sales\list_voucher_group_sales.html`:
+
+```html
+{% extends 'base.html' %}
+{% block content %}
+<h2>Voucher/Group Sales</h2>
+
+<!-- Month Pagination -->
+<form method="GET" class="row mb-3">
+  <div class="col-auto">
+    <label for="month">Select Month:</label>
+    <input type="month" id="month" name="month" class="form-control"
+           value="{{ month_filter if month_filter else '' }}">
+  </div>
+  <div class="col-auto align-self-end">
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </div>
+</form>
+
+<a href="{{ url_for('sales.new_voucher_group_sale') }}" class="btn btn-success mb-3">New Sale</a>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Date</th>
+      <th>Salesperson</th>
+      <th>Partner Name</th>
+      <th>Partner Company</th>
+      <th>Type</th>
+      <th>Qty</th>
+      <th>Price</th>
+      <th>Total</th>
+      <th>Total+VAT</th>
+      <th>Status</th>
+      <th>Booking Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sale in sales %}
+    <tr>
+      <td>{{ sale.id }}</td>
+      <td>{{ sale.sale_date.strftime('%Y-%m-%d') if sale.sale_date else '' }}</td>
+      <td>{{ sale.salesperson.username if sale.salesperson else '' }}</td>
+      <td>{{ sale.partner_name }}</td>
+      <td>{{ sale.partner_company }}</td>
+      <td>{{ sale.sale_type.capitalize() }}</td>
+      <td>{{ sale.quantity }}</td>
+      <td>{{ "%.2f"|format(sale.price_per_unit) }}</td>
+      <td>{{ "%.2f"|format(sale.total_price) }}</td>
+      <td>{{ "%.2f"|format(sale.total_sale) }}</td>
+      
+      <!-- Inline Status DropDown for the sale itself -->
+      <td>
+        <form method="POST" style="display:inline;">
+          <input type="hidden" name="sale_id" value="{{ sale.id }}">
+          <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="waiting" {% if sale.status == 'waiting' %}selected{% endif %}>Waiting</option>
+            <option value="paid" {% if sale.status == 'paid' %}selected{% endif %}>Paid</option>
+            <option value="canceled" {% if sale.status == 'canceled' %}selected{% endif %}>Canceled</option>
+          </select>
+        </form>
+      </td>
+      
+      <!-- Show booking's status if it exists, else "Not booked" + Book Now button -->
+      <td>
+        {% if sale.bookings and sale.bookings|length > 0 %}
+          {{ sale.bookings[0].status|capitalize }}
+        {% else %}
+          <span class="text-danger">Not booked</span>
+          <br>
+          <!-- Book Now Button -->
+          <a href="{{ url_for('booking.new_booking_for_sale', sale_id=sale.id) }}" 
+             class="btn btn-sm btn-secondary mt-1">
+            Book Now
+          </a>
+        {% endif %}
+      </td>
+      
+      <td>
+        <a href="{{ url_for('sales.view_sale', sale_id=sale.id) }}" class="btn btn-sm btn-info">View</a>
+        <a href="{{ url_for('sales.edit_sale', sale_id=sale.id) }}" class="btn btn-sm btn-warning">Edit</a>
+        <a href="{{ url_for('sales.delete_sale', sale_id=sale.id) }}"
+           class="btn btn-sm btn-danger"
+           onclick="return confirm('Are you sure you want to delete this sale?')">
+          Delete
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\sales\new_voucher_group_sale.html`:
+
+```html
+<!-- templates/sales/new_voucher_group_sale.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>{% if editing %}Edit{% else %}New{% endif %} Voucher/Group Sale</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    
+    <!-- Sale Type is auto-based on product category, but we keep this for clarity -->
+    <div class="mb-3">
+        {{ form.sale_type.label(class="form-label") }}
+        {{ form.sale_type(class="form-select") }}
+        {% for error in form.sale_type.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.product_id.label(class="form-label") }}
+        {{ form.product_id(class="form-select") }}
+        {% for error in form.product_id.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.partner_name.label(class="form-label") }}
+        {{ form.partner_name(class="form-control") }}
+        {% for error in form.partner_name.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.partner_company.label(class="form-label") }}
+        {{ form.partner_company(class="form-control") }}
+        {% for error in form.partner_company.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.booking_name.label(class="form-label") }}
+        {{ form.booking_name(class="form-control") }}
+        {% for error in form.booking_name.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+        <small class="text-muted">This helps reference the booking record that will be created automatically.</small>
+    </div>
+    
+    <div class="mb-3">
+        {{ form.quantity.label(class="form-label") }}
+        {{ form.quantity(class="form-control") }}
+        {% for error in form.quantity.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.price_per_unit.label(class="form-label") }}
+        {{ form.price_per_unit(class="form-control") }}
+        {% for error in form.price_per_unit.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.status.label(class="form-label") }}
+        {{ form.status(class="form-select") }}
+        {% for error in form.status.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.noted.label(class="form-label") }}
+        {{ form.noted(class="form-control") }}
+        {% for error in form.noted.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    
+    <div class="mb-3">
+        {{ form.submit(class="btn btn-primary") }}
+    </div>
+</form>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\templates\sales\view_sale.html`:
+
+```html
+<!-- templates/sales/view_sale.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>View Sale #{{ sale.id }}</h2>
+<ul>
+    <li>Date: {{ sale.sale_date.strftime('%Y-%m-%d') }}</li>
+    <li>Type: {{ sale.sale_type }}</li>
+    <li>Product: {{ sale.product_name }}</li>
+    <li>Quantity: {{ sale.quantity }}</li>
+    <li>Price per Unit: {{ sale.price_per_unit }}</li>
+    <li>Total Price: {{ sale.total_price }}</li>
+    <li>VAT 7%: {{ sale.vat_7 }}</li>
+    <li>Total Sale: {{ sale.total_sale }}</li>
+    <li>Partner Name: {{ sale.partner_name }}</li>
+    <li>Branch: {{ sale.branch.name }}</li>
+    <li>Notes: {{ sale.noted }}</li>
+</ul>
+<a href="{{ url_for('sales.list_voucher_group_sales') }}" class="btn btn-secondary">Back to Sales</a>
+{% endblock %}
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\utils\decorators.py`:
+
+```py
+# utils/decorators.py
+from functools import wraps
+from flask import flash, redirect, url_for
+from flask_login import current_user
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            flash('Admin access required.', 'danger')
+            return redirect(url_for('dashboard.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def roles_required(*roles):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated or current_user.role not in roles:
+                flash('You do not have access to this resource.', 'danger')
+                return redirect(url_for('dashboard.dashboard'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\views\auth.py`:
+
+```py
+# views/auth.py
+from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask_login import login_user, logout_user, login_required, current_user
+from models import db, User, Branch
+from forms import LoginForm, RegistrationForm
+from utils.decorators import admin_required
+
+auth_bp = Blueprint('auth', __name__, template_folder='auth')
+
+@auth_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.dashboard'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user and user.check_password(form.password.data):
+            login_user(user, remember=form.remember.data)
+            flash('Logged in successfully!', 'success')
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('dashboard.dashboard'))
+        else:
+            flash('Invalid username or password.', 'danger')
+    return render_template('auth/login.html', form=form)
+
+@auth_bp.route('/register', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def register():
+    form = RegistrationForm()
+    form.branch.choices = [(branch.id, branch.name) for branch in Branch.query.all()]
+    if form.validate_on_submit():
+        existing_user = User.query.filter(
+            (User.username == form.username.data) | 
+            (User.email == form.email.data)
+        ).first()
+        if existing_user:
+            flash('Username or email already exists.', 'danger')
+            return redirect(url_for('auth.register'))
+        new_user = User(
+            username=form.username.data,
+            email=form.email.data,
+            role=form.role.data,
+            branch_id=form.branch.data if form.role.data == 'branch_staff' else None
+        )
+        new_user.set_password(form.password.data)
+        db.session.add(new_user)
+        db.session.commit()
+        flash('User registered successfully!', 'success')
+        return redirect(url_for('auth.login'))
+    return render_template('auth/register.html', form=form)
+
+@auth_bp.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('auth.login'))
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\views\b2bc.py`:
+
+```py
+# views/b2bc.py
+from flask import Blueprint, request, render_template, redirect, url_for, flash
+from flask_login import login_required, current_user
+from models import db, SalesB2BC, Branch, CommissionRule
+from forms import B2BCSaleForm
+from utils.decorators import roles_required
+
+b2bc_bp = Blueprint('b2bc', __name__, template_folder='b2bc')
+
+@b2bc_bp.route('/new_b2bc_sale', methods=['GET', 'POST'])
+@login_required
+@roles_required('admin', 'branch_staff')
+def new_b2bc_sale():
+    form = B2BCSaleForm()
+    form.branch.choices = [(branch.id, branch.name) for branch in Branch.query.all()]
+    if form.validate_on_submit():
+        course_name = form.course_name.data
+        price = float(form.price.data)
+        
+        # Determine commission rate based on rules
+        commission_rule = CommissionRule.query.filter(
+            price >= CommissionRule.min_amount,
+            price <= CommissionRule.max_amount
+        ).first()
+        if not commission_rule:
+            commission_rate = 0.0
+        else:
+            commission_rate = commission_rule.rate
+        commission_amount = price * commission_rate
+        
+        branch_id = form.branch.data
+        noted = form.noted.data
+        
+        sale = SalesB2BC(
+            course_name=course_name,
+            price=price,
+            commission_rate=commission_rate,
+            commission_amount=commission_amount,
+            user_id=current_user.id,
+            branch_id=branch_id,
+            noted=noted
+        )
+        db.session.add(sale)
+        db.session.commit()
+        
+        flash('B2BC sale recorded successfully!', 'success')
+        return redirect(url_for('b2bc.list_b2bc_sales'))
+    
+    return render_template('b2bc/new_b2bc_sale.html', form=form)
+
+@b2bc_bp.route('/b2bc_sales')
+@login_required
+def list_b2bc_sales():
+    if current_user.role == 'admin':
+        sales = SalesB2BC.query.all()
+    else:
+        sales = SalesB2BC.query.filter_by(branch_id=current_user.branch_id).all()
+    return render_template('b2bc/list_b2bc_sales.html', sales=sales)
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\views\booking.py`:
+
+```py
+# views/booking.py
+
+from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask_login import login_required, current_user
+from models import db, Booking, Branch, SalesVoucherGroup
+from forms import UpdateBookingForm, NewBookingForm, InlineUpdateBookingForm
+from utils.decorators import roles_required
+
+booking_bp = Blueprint('booking', __name__, template_folder='bookings')
+
+@booking_bp.route('/bookings')
+@login_required
+def list_bookings():
+    if current_user.role == 'admin':
+        bookings = Booking.query.all()
+    else:
+        bookings = Booking.query.filter_by(branch_id=current_user.branch_id).all()
+    
+    return render_template('bookings/list_bookings.html', bookings=bookings)
+
+@booking_bp.route('/new', methods=['GET', 'POST'])
+@login_required
+@roles_required('admin','branch_staff')
+def new_booking():
+    """Create a brand-new booking for any sale or possibly none."""
+    form = NewBookingForm()
+    # Fill branches
+    form.branch_id.choices = [(b.id, b.name) for b in Branch.query.all()]
+    
+    if form.validate_on_submit():
+        booking = Booking(
+            booking_name=form.booking_name.data,
+            booking_date=form.booking_date.data,
+            time_slot=form.time_slot.data if form.time_slot.data else None,
+            status=form.status.data,
+            actual_quantity=0,
+            noted=form.noted.data,
+            branch_id=form.branch_id.data if form.branch_id.data else None
+        )
+        db.session.add(booking)
+        db.session.commit()
+        flash("Booking created successfully!", "success")
+        return redirect(url_for('booking.list_bookings'))
+    
+    return render_template('bookings/new_booking.html', form=form)
+
+@booking_bp.route('/new_for_sale/<int:sale_id>', methods=['GET','POST'])
+@login_required
+@roles_required('admin','branch_staff')
+def new_booking_for_sale(sale_id):
+    """
+    Create a booking specifically for an existing sale.
+    """
+    sale = SalesVoucherGroup.query.get_or_404(sale_id)
+    form = NewBookingForm()
+    form.branch_id.choices = [(b.id, b.name) for b in Branch.query.all()]
+    
+    if form.validate_on_submit():
+        booking = Booking(
+            voucher_group_sale_id=sale.id,
+            booking_name=form.booking_name.data,
+            booking_date=form.booking_date.data,
+            time_slot=form.time_slot.data if form.time_slot.data else None,
+            status=form.status.data,
+            actual_quantity=0,
+            noted=form.noted.data,
+            branch_id=form.branch_id.data if form.branch_id.data else None
+        )
+        db.session.add(booking)
+        db.session.commit()
+        flash(f"Booking created for Sale #{sale.id}!", "success")
+        return redirect(url_for('booking.list_bookings'))
+    
+    return render_template('bookings/new_booking.html', form=form)
+
+@booking_bp.route('/update_booking/<int:booking_id>', methods=['GET', 'POST'])
+@login_required
+@roles_required('admin', 'branch_staff')
+def update_booking(booking_id):
+    booking = Booking.query.get_or_404(booking_id)
+    form = UpdateBookingForm(obj=booking)
+    if form.validate_on_submit():
+        booking.status = form.status.data
+        booking.actual_quantity = form.actual_quantity.data
+        booking.noted = form.noted.data
+        db.session.commit()
+        flash('Booking updated successfully!', 'success')
+        return redirect(url_for('booking.list_bookings'))
+    return render_template('bookings/update_booking.html', form=form, booking=booking)
+
+@booking_bp.route('/delete_booking/<int:booking_id>', methods=['GET'])
+@login_required
+@roles_required('admin', 'branch_staff')
+def delete_booking(booking_id):
+    booking = Booking.query.get_or_404(booking_id)
+    
+    # Check permissions
+    if current_user.role != 'admin' and booking.branch_id != current_user.branch_id:
+        flash('You do not have permission to delete this booking.', 'danger')
+        return redirect(url_for('booking.list_bookings'))
+    
+    try:
+        db.session.delete(booking)
+        db.session.commit()
+        flash(f'Booking #{booking_id} has been deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'An error occurred while deleting the booking: {str(e)}', 'danger')
+    
+    return redirect(url_for('booking.list_bookings'))
+
+@booking_bp.route('/update_booking_fields/<int:booking_id>', methods=['POST'])
+@login_required
+@roles_required('admin', 'branch_staff')
+def update_booking_fields(booking_id):
+    booking = Booking.query.get_or_404(booking_id)
+    
+    # Check permissions
+    if current_user.role != 'admin' and booking.branch_id != current_user.branch_id:
+        flash('You do not have permission to update this booking.', 'danger')
+        return redirect(url_for('booking.list_bookings'))
+    
+    # Retrieve form data
+    status = request.form.get('status')
+    actual_quantity = request.form.get('actual_quantity')
+    
+    # Validate and update fields
+    if status:
+        booking.status = status
+    if actual_quantity:
+        try:
+            booking.actual_quantity = int(actual_quantity)
+        except ValueError:
+            flash('Actual Quantity must be an integer.', 'danger')
+            return redirect(url_for('booking.list_bookings'))
+    
+    try:
+        db.session.commit()
+        flash(f'Booking #{booking_id} has been updated successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'An error occurred while updating the booking: {str(e)}', 'danger')
+    
+    return redirect(url_for('booking.list_bookings'))
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\views\dashboard.py`:
+
+```py
+# views/dashboard.py
+from flask import Blueprint, render_template, flash, current_app
+from flask_login import login_required, current_user
+from models import db, SalesVoucherGroup, SalesB2BC, Booking, Branch
+from sqlalchemy import func
+from datetime import datetime, timedelta
+import traceback
+
+dashboard_bp = Blueprint('dashboard', __name__, template_folder='dashboard')
+
+@dashboard_bp.route('/')
+@login_required
+def dashboard():
+    try:
+        # --------------------------------------------------------------------------------
+        # 1) Date & Time Setup
+        # --------------------------------------------------------------------------------
+        today = datetime.utcnow().date()
+        start_month = today.replace(day=1)       # First day of the current month
+        start_year = today.replace(month=1, day=1)  # First day of the current year
+        start_week = today - timedelta(days=today.weekday())
+        last_30_days = today - timedelta(days=30)
+
+        # --------------------------------------------------------------------------------
+        # 2) Helper Queries For Summations
+        # --------------------------------------------------------------------------------
+        def voucher_sum_filter():
+            """Base query to sum 'SalesVoucherGroup.total_sale' with optional branch filter."""
+            q = db.session.query(func.sum(SalesVoucherGroup.total_sale))
+            if current_user.role != 'admin':
+                q = q.filter(SalesVoucherGroup.branch_id == current_user.branch_id)
+            return q
+
+        def b2bc_sum_filter():
+            """Base query to sum 'SalesB2BC.price' with optional branch filter."""
+            q = db.session.query(func.sum(SalesB2BC.price))
+            if current_user.role != 'admin':
+                q = q.filter(SalesB2BC.branch_id == current_user.branch_id)
+            return q
+
+        # --------------------------------------------------------------------------------
+        # 3) Total Revenue: Today, This Month, This Year
+        # --------------------------------------------------------------------------------
+        # Today
+        voucher_today = voucher_sum_filter()\
+            .filter(SalesVoucherGroup.sale_date >= datetime.combine(today, datetime.min.time()),
+                    SalesVoucherGroup.sale_date <= datetime.combine(today, datetime.max.time()))\
+            .scalar() or 0
+        b2bc_today = b2bc_sum_filter()\
+            .filter(SalesB2BC.sale_date >= datetime.combine(today, datetime.min.time()),
+                    SalesB2BC.sale_date <= datetime.combine(today, datetime.max.time()))\
+            .scalar() or 0
+        total_revenue_today = voucher_today + b2bc_today
+
+        # This Month
+        voucher_month = voucher_sum_filter()\
+            .filter(SalesVoucherGroup.sale_date >= datetime.combine(start_month, datetime.min.time()),
+                    SalesVoucherGroup.sale_date <= datetime.combine(today, datetime.max.time()))\
+            .scalar() or 0
+        b2bc_month = b2bc_sum_filter()\
+            .filter(SalesB2BC.sale_date >= datetime.combine(start_month, datetime.min.time()),
+                    SalesB2BC.sale_date <= datetime.combine(today, datetime.max.time()))\
+            .scalar() or 0
+        total_revenue_month = voucher_month + b2bc_month
+
+        # This Year
+        voucher_year = voucher_sum_filter()\
+            .filter(SalesVoucherGroup.sale_date >= datetime.combine(start_year, datetime.min.time()),
+                    SalesVoucherGroup.sale_date <= datetime.combine(today, datetime.max.time()))\
+            .scalar() or 0
+        b2bc_year = b2bc_sum_filter()\
+            .filter(SalesB2BC.sale_date >= datetime.combine(start_year, datetime.min.time()),
+                    SalesB2BC.sale_date <= datetime.combine(today, datetime.max.time()))\
+            .scalar() or 0
+        total_revenue_year = voucher_year + b2bc_year
+
+        # --------------------------------------------------------------------------------
+        # 4) Bookings (Today, This Week)
+        # --------------------------------------------------------------------------------
+        if current_user.role == 'admin':
+            bookings_today = Booking.query.filter_by(booking_date=today).count()
+            bookings_week = Booking.query.filter(Booking.booking_date >= start_week).count()
+        else:
+            bookings_today = Booking.query.filter_by(booking_date=today,
+                                                     branch_id=current_user.branch_id).count()
+            bookings_week = Booking.query.filter(Booking.booking_date >= start_week,
+                                                 Booking.branch_id == current_user.branch_id).count()
+
+        # --------------------------------------------------------------------------------
+        # 5) Commission (This Month) - B2BC Only
+        # --------------------------------------------------------------------------------
+        if current_user.role == 'admin':
+            commission_month = db.session.query(func.sum(SalesB2BC.commission_amount))\
+                .filter(SalesB2BC.sale_date >= datetime.combine(start_month, datetime.min.time()),
+                        SalesB2BC.sale_date <= datetime.combine(today, datetime.max.time()))\
+                .scalar() or 0
+        else:
+            commission_month = db.session.query(func.sum(SalesB2BC.commission_amount))\
+                .filter(SalesB2BC.sale_date >= datetime.combine(start_month, datetime.min.time()),
+                        SalesB2BC.sale_date <= datetime.combine(today, datetime.max.time()),
+                        SalesB2BC.branch_id == current_user.branch_id)\
+                .scalar() or 0
+
+        # --------------------------------------------------------------------------------
+        # 6) Utilization Rate (bookings_today_count vs. capacity)
+        # --------------------------------------------------------------------------------
+        if current_user.role == 'admin':
+            # Sum capacities of all branches:
+            branch_capacity_sum = db.session.query(func.sum(Branch.capacity)).scalar() or 0
+            bookings_today_count = Booking.query.filter_by(booking_date=today).count()
+
+            if branch_capacity_sum > 0:
+                utilization_rate = (bookings_today_count / branch_capacity_sum) * 100
+            else:
+                utilization_rate = 0
+        else:
+            # Just the current user's branch:
+            branch = Branch.query.get(current_user.branch_id)
+            branch_capacity = branch.capacity if branch and branch.capacity else 0
+            bookings_today_count = Booking.query.filter_by(
+                booking_date=today,
+                branch_id=current_user.branch_id
+            ).count()
+            if branch_capacity > 0:
+                utilization_rate = (bookings_today_count / branch_capacity) * 100
+            else:
+                utilization_rate = 0
+
+        # --------------------------------------------------------------------------------
+        # 7) Sales Breakdown (voucher vs. group) from SalesVoucherGroup
+        # --------------------------------------------------------------------------------
+        if current_user.role == 'admin':
+            sales_breakdown = db.session.query(
+                SalesVoucherGroup.sale_type,
+                func.count(SalesVoucherGroup.id)
+            ).group_by(SalesVoucherGroup.sale_type).all()
+        else:
+            sales_breakdown = db.session.query(
+                SalesVoucherGroup.sale_type,
+                func.count(SalesVoucherGroup.id)
+            ).filter(SalesVoucherGroup.branch_id == current_user.branch_id)\
+             .group_by(SalesVoucherGroup.sale_type).all()
+
+        # --------------------------------------------------------------------------------
+        # 8) Top Selling Products (limit 5) from SalesVoucherGroup
+        # --------------------------------------------------------------------------------
+        if current_user.role == 'admin':
+            top_products = db.session.query(
+                SalesVoucherGroup.product_name,
+                func.count(SalesVoucherGroup.id).label('count')
+            ).group_by(SalesVoucherGroup.product_name)\
+             .order_by(func.count(SalesVoucherGroup.id).desc()).limit(5).all()
+        else:
+            top_products = db.session.query(
+                SalesVoucherGroup.product_name,
+                func.count(SalesVoucherGroup.id).label('count')
+            ).filter(SalesVoucherGroup.branch_id == current_user.branch_id)\
+             .group_by(SalesVoucherGroup.product_name)\
+             .order_by(func.count(SalesVoucherGroup.id).desc()).limit(5).all()
+
+        # --------------------------------------------------------------------------------
+        # 9) Top Partners (limit 5) from SalesVoucherGroup
+        # --------------------------------------------------------------------------------
+        if current_user.role == 'admin':
+            top_partners = db.session.query(
+                SalesVoucherGroup.partner_name,
+                func.sum(SalesVoucherGroup.total_sale).label('total')
+            ).group_by(SalesVoucherGroup.partner_name)\
+             .order_by(func.sum(SalesVoucherGroup.total_sale).desc()).limit(5).all()
+        else:
+            top_partners = db.session.query(
+                SalesVoucherGroup.partner_name,
+                func.sum(SalesVoucherGroup.total_sale).label('total')
+            ).filter(SalesVoucherGroup.branch_id == current_user.branch_id)\
+             .group_by(SalesVoucherGroup.partner_name)\
+             .order_by(func.sum(SalesVoucherGroup.total_sale).desc()).limit(5).all()
+
+        # --------------------------------------------------------------------------------
+        # 10) Sales Trends (last 30 days): Merge Voucher & B2BC
+        # --------------------------------------------------------------------------------
+        if current_user.role == 'admin':
+            vtrend = db.session.query(
+                func.date(SalesVoucherGroup.sale_date).label('d'),
+                func.sum(SalesVoucherGroup.total_sale).label('amt')
+            ).filter(SalesVoucherGroup.sale_date >= datetime.combine(last_30_days, datetime.min.time()))\
+             .group_by(func.date(SalesVoucherGroup.sale_date)).all()
+
+            btrend = db.session.query(
+                func.date(SalesB2BC.sale_date).label('d'),
+                func.sum(SalesB2BC.price).label('amt')
+            ).filter(SalesB2BC.sale_date >= datetime.combine(last_30_days, datetime.min.time()))\
+             .group_by(func.date(SalesB2BC.sale_date)).all()
+        else:
+            vtrend = db.session.query(
+                func.date(SalesVoucherGroup.sale_date).label('d'),
+                func.sum(SalesVoucherGroup.total_sale).label('amt')
+            ).filter(SalesVoucherGroup.branch_id == current_user.branch_id,
+                     SalesVoucherGroup.sale_date >= datetime.combine(last_30_days, datetime.min.time()))\
+             .group_by(func.date(SalesVoucherGroup.sale_date)).all()
+
+            btrend = db.session.query(
+                func.date(SalesB2BC.sale_date).label('d'),
+                func.sum(SalesB2BC.price).label('amt')
+            ).filter(SalesB2BC.branch_id == current_user.branch_id,
+                     SalesB2BC.sale_date >= datetime.combine(last_30_days, datetime.min.time()))\
+             .group_by(func.date(SalesB2BC.sale_date)).all()
+
+        # Combine them:
+        trend_dict = {}
+        for row in vtrend:
+            trend_dict[row.d] = trend_dict.get(row.d, 0) + (row.amt or 0)
+        for row in btrend:
+            trend_dict[row.d] = trend_dict.get(row.d, 0) + (row.amt or 0)
+        # Sort by date:
+        sales_trend = sorted(trend_dict.items(), key=lambda x: x[0])
+
+        # --------------------------------------------------------------------------------
+        # 11) Booking Trends (last 30 days)
+        # --------------------------------------------------------------------------------
+        if current_user.role == 'admin':
+            bookings_trend = db.session.query(
+                func.date(Booking.booking_date),
+                func.count(Booking.id)
+            ).filter(Booking.booking_date >= last_30_days)\
+             .group_by(func.date(Booking.booking_date)).all()
+        else:
+            bookings_trend = db.session.query(
+                func.date(Booking.booking_date),
+                func.count(Booking.id)
+            ).filter(Booking.branch_id == current_user.branch_id,
+                     Booking.booking_date >= last_30_days)\
+             .group_by(func.date(Booking.booking_date)).all()
+
+        # --------------------------------------------------------------------------------
+        # 12) Upcoming Bookings
+        # --------------------------------------------------------------------------------
+        if current_user.role == 'admin':
+            upcoming_bookings = Booking.query.filter(Booking.booking_date >= today)\
+                .order_by(Booking.booking_date, Booking.time_slot).all()
+        else:
+            upcoming_bookings = Booking.query.filter(Booking.branch_id == current_user.branch_id,
+                                                     Booking.booking_date >= today)\
+                .order_by(Booking.booking_date, Booking.time_slot).all()
+
+        # --------------------------------------------------------------------------------
+        # 13) Commission & Profit Overview
+        # --------------------------------------------------------------------------------
+        # Gross = sum of all voucher + B2BC
+        # Commission = sum of B2BC commission_amount
+        # Net = gross - commission
+        if current_user.role == 'admin':
+            voucher_sum_all = db.session.query(func.sum(SalesVoucherGroup.total_sale)).scalar() or 0
+            b2bc_sum_all = db.session.query(func.sum(SalesB2BC.price)).scalar() or 0
+            total_commission = db.session.query(func.sum(SalesB2BC.commission_amount)).scalar() or 0
+        else:
+            voucher_sum_all = db.session.query(func.sum(SalesVoucherGroup.total_sale))\
+                .filter(SalesVoucherGroup.branch_id == current_user.branch_id).scalar() or 0
+            b2bc_sum_all = db.session.query(func.sum(SalesB2BC.price))\
+                .filter(SalesB2BC.branch_id == current_user.branch_id).scalar() or 0
+            total_commission = db.session.query(func.sum(SalesB2BC.commission_amount))\
+                .filter(SalesB2BC.branch_id == current_user.branch_id).scalar() or 0
+
+        gross_revenue = voucher_sum_all + b2bc_sum_all
+        net_revenue = gross_revenue - total_commission
+
+        # --------------------------------------------------------------------------------
+        # 14) Branch Comparisons (Revenue, Bookings)
+        # --------------------------------------------------------------------------------
+        # We'll merge voucher & b2bc revenue into a single 'branch_revenue'.
+        if current_user.role == 'admin':
+            # Vouchers by branch:
+            br_voucher = db.session.query(
+                Branch.name,
+                func.sum(SalesVoucherGroup.total_sale).label('revenue')
+            ).join(SalesVoucherGroup, SalesVoucherGroup.branch_id == Branch.id)\
+             .group_by(Branch.name).all()
+
+            # B2BC by branch:
+            br_b2bc = db.session.query(
+                Branch.name,
+                func.sum(SalesB2BC.price).label('revenue')
+            ).join(SalesB2BC, SalesB2BC.branch_id == Branch.id)\
+             .group_by(Branch.name).all()
+
+            # Bookings by branch:
+            br_bookings = db.session.query(
+                Branch.name,
+                func.count(Booking.id).label('bookings')
+            ).join(Booking, Booking.branch_id == Branch.id)\
+             .group_by(Branch.name).all()
+        else:
+            # Restrict to current_user.branch_id
+            user_branch_id = current_user.branch_id
+            br_voucher = db.session.query(
+                Branch.name,
+                func.sum(SalesVoucherGroup.total_sale).label('revenue')
+            ).join(SalesVoucherGroup, SalesVoucherGroup.branch_id == Branch.id)\
+             .filter(Branch.id == user_branch_id)\
+             .group_by(Branch.name).all()
+
+            br_b2bc = db.session.query(
+                Branch.name,
+                func.sum(SalesB2BC.price).label('revenue')
+            ).join(SalesB2BC, SalesB2BC.branch_id == Branch.id)\
+             .filter(Branch.id == user_branch_id)\
+             .group_by(Branch.name).all()
+
+            br_bookings = db.session.query(
+                Branch.name,
+                func.count(Booking.id).label('bookings')
+            ).join(Booking, Booking.branch_id == Branch.id)\
+             .filter(Branch.id == user_branch_id)\
+             .group_by(Branch.name).all()
+
+        # Merge voucher & b2bc revenue
+        voucher_dict = {row[0]: (row[1] or 0) for row in br_voucher}
+        b2bc_dict = {row[0]: (row[1] or 0) for row in br_b2bc}
+
+        merged_branch_revenue = {}
+        all_branch_names = set(voucher_dict.keys()) | set(b2bc_dict.keys())
+        for bn in all_branch_names:
+            merged_branch_revenue[bn] = voucher_dict.get(bn, 0) + b2bc_dict.get(bn, 0)
+
+        # Convert to list for the template
+        branch_revenue = [(bn, merged_branch_revenue[bn]) for bn in sorted(merged_branch_revenue.keys())]
+        branch_bookings = [(row[0], row[1]) for row in br_bookings]
+
+        # --------------------------------------------------------------------------------
+        # 15) Finally, Render the Template
+        # --------------------------------------------------------------------------------
+        return render_template('dashboard.html',
+            # KPI Cards
+            total_revenue_today = total_revenue_today,
+            total_revenue_month = total_revenue_month,
+            total_revenue_year  = total_revenue_year,
+            commission_month    = commission_month,
+            bookings_today      = bookings_today,
+            bookings_week       = bookings_week,
+            utilization_rate    = utilization_rate,
+            # Charts Data
+            sales_breakdown     = sales_breakdown,  # (voucher vs. group count)
+            top_products        = top_products,
+            top_partners        = top_partners,
+            sales_trend         = sales_trend,      # combined voucher + b2bc
+            bookings_trend      = bookings_trend,   # from Bookings table
+            # Commission & Profit
+            gross_revenue       = gross_revenue,
+            total_commission    = total_commission,
+            net_revenue         = net_revenue,
+            # Branch Comparisons
+            branch_revenue      = branch_revenue,
+            branch_bookings     = branch_bookings,
+            # Upcoming Bookings List
+            upcoming_bookings   = upcoming_bookings
+        )
+
+    except Exception as e:
+        # Capture the entire traceback
+        tb = traceback.format_exc()
+        # Log error to console/logs
+        current_app.logger.error(f"Error in dashboard route: {e}")
+        # Log the full traceback for debugging
+        current_app.logger.error(f"Traceback:\n{tb}")
+        # Show user-friendly message
+        flash(f"An error occurred while loading the dashboard: {e}", "danger")
+        # Render 500 template
+        return render_template("500.html"), 500
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\views\products.py`:
+
+```py
+# views/products.py
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import login_required
+from models import db, Product
+from forms import ProductForm
+
+products_bp = Blueprint('products', __name__, template_folder='products')
+
+@products_bp.route('/list', methods=['GET'])
+@login_required
+def list_products():
+    products = Product.query.order_by(Product.category, Product.name).all()
+    return render_template('products/list_products.html', products=products)
+
+@products_bp.route('/edit/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def edit_product(product_id):
+    product = Product.query.get_or_404(product_id)
+    form = ProductForm(obj=product)
+    if form.validate_on_submit():
+        product.name = form.name.data
+        product.category = form.category.data
+        product.default_price = form.default_price.data
+        db.session.commit()
+        flash('Product updated successfully!', 'success')
+        return redirect(url_for('products.list_products'))
+    return render_template('products/edit_product.html', form=form, product=product)
+
+@products_bp.route('/new', methods=['GET', 'POST'])
+@login_required
+def new_product():
+    form = ProductForm()
+    if form.validate_on_submit():
+        new_prod = Product(
+            name=form.name.data,
+            category=form.category.data,
+            default_price=form.default_price.data
+        )
+        db.session.add(new_prod)
+        db.session.commit()
+        flash('New product added!', 'success')
+        return redirect(url_for('products.list_products'))
+    return render_template('products/new_product.html', form=form)
+
+```
+
+`\\?\C:\B2Bsalesystem_projectH\views\sales.py`:
+
+```py
+# views/sales.py
+from flask import Blueprint, request, render_template, redirect, url_for, flash
+from flask_login import login_required, current_user
+from datetime import datetime
+from models import db, SalesVoucherGroup, User, Product
+from forms import VoucherGroupSaleForm
+from utils.decorators import roles_required
+
+sales_bp = Blueprint('sales', __name__, template_folder='sales')
+
+@sales_bp.route('/voucher_group_sales', methods=['GET', 'POST'])
+@login_required
+def list_voucher_group_sales():
+    # If POST is from inline status change
+    if request.method == 'POST':
+        sale_id = request.form.get('sale_id')
+        new_status = request.form.get('status')
+        if sale_id and new_status:
+            sale = SalesVoucherGroup.query.get(sale_id)
+            if sale and (current_user.role == 'admin' or sale.salesperson_id == current_user.id):
+                sale.status = new_status
+                db.session.commit()
+                flash(f"Sale #{sale_id} status changed to {new_status}.", "success")
+        return redirect(url_for('sales.list_voucher_group_sales'))
+    
+    # GET logic (month filter)
+    month_filter = request.args.get('month')
+    query = SalesVoucherGroup.query
+    if current_user.role != 'admin':
+        # filter by branch or user if you want
+        pass
+    
+    if month_filter:
+        try:
+            year, month = month_filter.split('-')
+            year = int(year)
+            month = int(month)
+            start_date = datetime(year, month, 1)
+            if month == 12:
+                end_date = datetime(year+1, 1, 1)
+            else:
+                end_date = datetime(year, month+1, 1)
+            query = query.filter(SalesVoucherGroup.sale_date >= start_date,
+                                 SalesVoucherGroup.sale_date < end_date)
+        except:
+            pass
+    
+    sales = query.all()
+    return render_template('sales/list_voucher_group_sales.html',
+                           sales=sales,
+                           month_filter=month_filter)
+
+@sales_bp.route('/new_voucher_group_sale', methods=['GET', 'POST'])
+@login_required
+@roles_required('admin', 'branch_staff')
+def new_voucher_group_sale():
+    form = VoucherGroupSaleForm()
+    # Populate the product dropdown
+    products = Product.query.order_by(Product.name).all()
+    form.product_id.choices = [(p.id, p.name) for p in products]
+    
+    if form.validate_on_submit():
+        product = Product.query.get(form.product_id.data)
+        if not product:
+            flash("Invalid product selected.", "danger")
+            return redirect(url_for('sales.new_voucher_group_sale'))
+        
+        # auto-assign sale_type from product category
+        sale_type = 'group' if product.category == 'activities_group' else 'voucher'
+        
+        quantity = float(form.quantity.data)
+        price_per_unit = float(form.price_per_unit.data)
+        
+        total_price = quantity * price_per_unit
+        vat_7 = total_price * 0.07
+        total_sale = total_price + vat_7
+        
+        sale = SalesVoucherGroup(
+            sale_type=sale_type,
+            product_name=product.name,
+            quantity=quantity,
+            price_per_unit=price_per_unit,
+            total_price=total_price,
+            vat_7=vat_7,
+            total_sale=total_sale,
+            partner_name=form.partner_name.data,
+            partner_company=form.partner_company.data,
+            status=form.status.data,
+            noted=form.noted.data,
+            salesperson_id=current_user.id
+        )
+        
+        db.session.add(sale)
+        db.session.commit()
+        
+        # IMPORTANT: We do NOT create a booking automatically.
+        
+        flash('Voucher/Group sale created successfully! (Currently "Not booked")', 'success')
+        return redirect(url_for('sales.list_voucher_group_sales'))
+    
+    return render_template('sales/new_voucher_group_sale.html', form=form)
+
+@sales_bp.route('/edit_sale/<int:sale_id>', methods=['GET', 'POST'])
+@login_required
+@roles_required('admin', 'branch_staff')
+def edit_sale(sale_id):
+    sale = SalesVoucherGroup.query.get_or_404(sale_id)
+    form = VoucherGroupSaleForm(obj=sale)
+    products = Product.query.order_by(Product.name).all()
+    form.product_id.choices = [(p.id, p.name) for p in products]
+    
+    # find matching product
+    matching_product = Product.query.filter_by(name=sale.product_name).first()
+    
+    if request.method == 'GET':
+        if matching_product:
+            form.product_id.data = matching_product.id
+        form.status.data = sale.status
+        # no booking auto creation
+        if sale.bookings:
+            form.booking_name.data = sale.bookings[0].booking_name or ''
+    
+    if form.validate_on_submit():
+        product = Product.query.get(form.product_id.data)
+        if not product:
+            flash("Invalid product selection!", "danger")
+            return redirect(url_for('sales.edit_sale', sale_id=sale.id))
+        
+        sale_type = 'group' if product.category == 'activities_group' else 'voucher'
+        sale.sale_type = sale_type
+        sale.product_name = product.name
+        
+        sale.partner_name = form.partner_name.data
+        sale.partner_company = form.partner_company.data
+        sale.quantity = float(form.quantity.data)
+        sale.price_per_unit = float(form.price_per_unit.data)
+        sale.status = form.status.data
+        sale.noted = form.noted.data
+        
+        sale.total_price = sale.quantity * sale.price_per_unit
+        sale.vat_7 = sale.total_price * 0.07
+        sale.total_sale = sale.total_price + sale.vat_7
+        
+        db.session.commit()
+        
+        if sale.bookings:
+            # update booking name if it exists
+            sale.bookings[0].booking_name = form.booking_name.data
+            db.session.commit()
+        
+        flash(f"Sale #{sale.id} updated successfully!", "success")
+        return redirect(url_for('sales.list_voucher_group_sales'))
+    
+    return render_template('sales/new_voucher_group_sale.html', form=form, editing=True)
+
+@sales_bp.route('/delete_sale/<int:sale_id>', methods=['GET', 'POST'])
+@login_required
+@roles_required('admin', 'branch_staff')
+def delete_sale(sale_id):
+    sale = SalesVoucherGroup.query.get_or_404(sale_id)
+    db.session.delete(sale)
+    db.session.commit()
+    flash(f"Sale #{sale_id} has been deleted.", "success")
+    return redirect(url_for('sales.list_voucher_group_sales'))
+
+@sales_bp.route('/view_sale/<int:sale_id>')
+@login_required
+@roles_required('admin', 'branch_staff')
+def view_sale(sale_id):
+    sale = SalesVoucherGroup.query.get_or_404(sale_id)
+    return render_template('sales/view_sale.html', sale=sale)
+
+```
